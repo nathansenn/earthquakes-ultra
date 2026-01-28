@@ -151,8 +151,26 @@ body {
 
 /* Prose styles for educational content */
 .prose-earthquake {
-  @apply prose prose-gray dark:prose-invert max-w-none;
-  @apply prose-headings:font-bold prose-headings:text-primary;
-  @apply prose-a:text-primary prose-a:no-underline hover:prose-a:underline;
-  @apply prose-strong:text-current prose-strong:font-semibold;
+  max-width: none;
+}
+
+.prose-earthquake h1,
+.prose-earthquake h2,
+.prose-earthquake h3,
+.prose-earthquake h4 {
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.prose-earthquake a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.prose-earthquake a:hover {
+  text-decoration: underline;
+}
+
+.prose-earthquake strong {
+  font-weight: 600;
 }
