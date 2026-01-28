@@ -1,3 +1,5 @@
+"use client";
+
 import { ProcessedEarthquake } from "@/lib/usgs-api";
 import { EarthquakeCard, EarthquakeCardCompact } from "./EarthquakeCard";
 
