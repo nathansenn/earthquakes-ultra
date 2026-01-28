@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchPhilippineEarthquakes, processEarthquake } from "@/lib/usgs-api";
+import { fetchPhilippineEarthquakes, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 
@@ -15,7 +15,7 @@ export const revalidate = 300;
 
 export default async function HomePage() {
   // Fetch recent earthquakes
-  let earthquakes = [];
+  let earthquakes: ProcessedEarthquake[] = [];
   try {
     const rawEarthquakes = await fetchPhilippineEarthquakes(7, 2.5);
     earthquakes = rawEarthquakes.slice(0, 10).map(processEarthquake);

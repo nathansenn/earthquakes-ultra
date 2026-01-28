@@ -81,7 +81,7 @@ export async function fetchEarthquakes(query: EarthquakeQuery = {}): Promise<USG
     format: 'geojson',
     ...Object.fromEntries(
       Object.entries(query)
-        .filter(([_, v]) => v !== undefined)
+        .filter(([, v]) => v !== undefined)
         .map(([k, v]) => [k, String(v)])
     ),
   });

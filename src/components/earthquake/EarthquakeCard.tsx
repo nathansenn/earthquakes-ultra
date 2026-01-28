@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ProcessedEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
+import { ProcessedEarthquake } from "@/lib/usgs-api";
 
 interface EarthquakeCardProps {
   earthquake: ProcessedEarthquake;
