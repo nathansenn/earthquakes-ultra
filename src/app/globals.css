@@ -3,24 +3,156 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --primary: #dc2626;
+  --primary-foreground: #ffffff;
+  --secondary: #f97316;
+  --accent: #f59e0b;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --border: #e5e5e5;
+  --ring: #dc2626;
+  --radius: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --primary: #ef4444;
+    --primary-foreground: #ffffff;
+    --secondary: #fb923c;
+    --accent: #fbbf24;
+    --muted: #262626;
+    --muted-foreground: #a3a3a3;
+    --border: #262626;
+    --ring: #ef4444;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}
+
+/* Animation classes */
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s;
+}
+
+/* Magnitude colors */
+.magnitude-minor {
+  @apply bg-green-500 text-white;
+}
+
+.magnitude-light {
+  @apply bg-yellow-500 text-gray-900;
+}
+
+.magnitude-moderate {
+  @apply bg-orange-500 text-white;
+}
+
+.magnitude-strong {
+  @apply bg-orange-600 text-white;
+}
+
+.magnitude-major {
+  @apply bg-red-600 text-white;
+}
+
+.magnitude-great {
+  @apply bg-red-800 text-white;
+}
+
+.magnitude-extreme {
+  @apply bg-red-950 text-white;
+}
+
+/* Map styles */
+.mapboxgl-popup-content,
+.leaflet-popup-content-wrapper {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--background) !important;
+}
+
+/* Risk level indicators */
+.risk-very-high {
+  @apply bg-red-600 text-white;
+}
+
+.risk-high {
+  @apply bg-orange-500 text-white;
+}
+
+.risk-moderate {
+  @apply bg-yellow-500 text-gray-900;
+}
+
+.risk-low {
+  @apply bg-green-500 text-white;
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600;
+}
+
+/* Prose styles for educational content */
+.prose-earthquake {
+  @apply prose prose-gray dark:prose-invert max-w-none;
+  @apply prose-headings:font-bold prose-headings:text-primary;
+  @apply prose-a:text-primary prose-a:no-underline hover:prose-a:underline;
+  @apply prose-strong:text-current prose-strong:font-semibold;
 }
