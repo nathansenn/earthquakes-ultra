@@ -1,36 +1,36 @@
 # Dockerfile for Earthquakes-Ultra
-# Ensures source files are copied and built in correct order
+# Next.js standalone output for optimized Docker image
 
 FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first
 COPY package*.json ./
 
-# Install dependencies
+# Install ALL dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy ALL source files BEFORE building
+# Copy ALL source files
 COPY . .
 
-# Build the application
+# Build with standalone output
 RUN npm run build
 
-# Production image
+# Production image - minimal
 FROM node:22-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=8080
 
-# Copy built application
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+# Copy standalone build
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 EXPOSE 8080
-ENV PORT=8080
 
-CMD ["npm", "start"]
+# Start the standalone server
+CMD ["node", "server.js"]
