@@ -66,6 +66,13 @@ export function Header() {
               <span>3D Globe</span>
             </Link>
             <Link
+              href="/volcanoes"
+              className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors font-medium flex items-center gap-1"
+            >
+              <span>🌋</span>
+              <span>Volcanoes</span>
+            </Link>
+            <Link
               href="/alerts"
               className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors font-medium"
             >
@@ -171,6 +178,14 @@ export function Header() {
               >
                 <span>🌍</span>
                 <span>3D Globe</span>
+              </Link>
+              <Link
+                href="/volcanoes"
+                className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors font-medium flex items-center gap-1"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span>🌋</span>
+                <span>Volcanoes</span>
               </Link>
               <Link
                 href="/alerts"
