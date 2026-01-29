@@ -117,6 +117,141 @@ export async function fetchPhilippineEarthquakes(days: number = 30, minMagnitude
   });
 }
 
+// Time range options for filtering
+export type TimeRange = '24h' | '7d' | '30d' | '90d' | '1yr';
+
+export function getTimeRangeDays(range: TimeRange): number {
+  switch (range) {
+    case '24h': return 1;
+    case '7d': return 7;
+    case '30d': return 30;
+    case '90d': return 90;
+    case '1yr': return 365;
+    default: return 7;
+  }
+}
+
+export const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
+  { value: '24h', label: 'Last 24 Hours' },
+  { value: '7d', label: 'Last 7 Days' },
+  { value: '30d', label: 'Last 30 Days' },
+  { value: '90d', label: 'Last 90 Days' },
+  { value: '1yr', label: 'Last Year' },
+];
+
+// Magnitude filter options
+export type MagnitudeFilter = 1 | 2 | 3 | 4 | 5 | 6;
+
+export const MAGNITUDE_OPTIONS: { value: MagnitudeFilter; label: string }[] = [
+  { value: 1, label: 'M1.0+' },
+  { value: 2, label: 'M2.0+' },
+  { value: 3, label: 'M3.0+' },
+  { value: 4, label: 'M4.0+' },
+  { value: 5, label: 'M5.0+' },
+  { value: 6, label: 'M6.0+' },
+];
+
+// Fetch M1+ earthquakes for comprehensive data
+export async function fetchAllPhilippineEarthquakes(
+  days: number = 7, 
+  minMagnitude: number = 1.0
+): Promise<USGSEarthquake[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  // For M1+ we can get a LOT of data, limit appropriately
+  const limit = minMagnitude <= 2 ? 5000 : 2000;
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    minlatitude: PHILIPPINES_BOUNDS.minLatitude,
+    maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
+    minlongitude: PHILIPPINES_BOUNDS.minLongitude,
+    maxlongitude: PHILIPPINES_BOUNDS.maxLongitude,
+    minmagnitude: minMagnitude,
+    orderby: 'time',
+    limit,
+  });
+}
+
+// Fetch with configurable parameters
+export async function fetchEarthquakesConfigurable(options: {
+  days?: number;
+  minMagnitude?: number;
+  maxMagnitude?: number;
+  limit?: number;
+  orderBy?: 'time' | 'time-asc' | 'magnitude' | 'magnitude-asc';
+}): Promise<USGSEarthquake[]> {
+  const { 
+    days = 7, 
+    minMagnitude = 1.0, 
+    maxMagnitude,
+    limit = 2000,
+    orderBy = 'time'
+  } = options;
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    minlatitude: PHILIPPINES_BOUNDS.minLatitude,
+    maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
+    minlongitude: PHILIPPINES_BOUNDS.minLongitude,
+    maxlongitude: PHILIPPINES_BOUNDS.maxLongitude,
+    minmagnitude: minMagnitude,
+    maxmagnitude: maxMagnitude,
+    orderby: orderBy,
+    limit,
+  });
+}
+
+// Get earthquake statistics
+export interface EarthquakeStats {
+  total: number;
+  last24h: number;
+  m1Plus: number;
+  m2Plus: number;
+  m3Plus: number;
+  m4Plus: number;
+  m5Plus: number;
+  m6Plus: number;
+  avgMagnitude: number;
+  maxMagnitude: number;
+  avgDepth: number;
+}
+
+export function calculateStats(earthquakes: ProcessedEarthquake[]): EarthquakeStats {
+  const now = Date.now();
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+  const last24h = earthquakes.filter(eq => eq.time.getTime() > oneDayAgo);
+  
+  return {
+    total: earthquakes.length,
+    last24h: last24h.length,
+    m1Plus: earthquakes.filter(eq => eq.magnitude >= 1).length,
+    m2Plus: earthquakes.filter(eq => eq.magnitude >= 2).length,
+    m3Plus: earthquakes.filter(eq => eq.magnitude >= 3).length,
+    m4Plus: earthquakes.filter(eq => eq.magnitude >= 4).length,
+    m5Plus: earthquakes.filter(eq => eq.magnitude >= 5).length,
+    m6Plus: earthquakes.filter(eq => eq.magnitude >= 6).length,
+    avgMagnitude: earthquakes.length > 0
+      ? earthquakes.reduce((sum, eq) => sum + eq.magnitude, 0) / earthquakes.length
+      : 0,
+    maxMagnitude: earthquakes.length > 0
+      ? Math.max(...earthquakes.map(eq => eq.magnitude))
+      : 0,
+    avgDepth: earthquakes.length > 0
+      ? earthquakes.reduce((sum, eq) => sum + eq.depth, 0) / earthquakes.length
+      : 0,
+  };
+}
+
 // Fetch earthquakes near a specific location
 export async function fetchEarthquakesNearLocation(
   latitude: number,

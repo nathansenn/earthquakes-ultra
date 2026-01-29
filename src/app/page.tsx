@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchPhilippineEarthquakes, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { fetchPhilippineEarthquakes, fetchAllPhilippineEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 
@@ -14,8 +14,10 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function HomePage() {
-  // Fetch recent earthquakes
+  // Fetch recent earthquakes for display
   let earthquakes: ProcessedEarthquake[] = [];
+  let allEarthquakes: ProcessedEarthquake[] = [];
+  
   try {
     const rawEarthquakes = await fetchPhilippineEarthquakes(7, 2.5);
     earthquakes = rawEarthquakes.slice(0, 10).map(processEarthquake);
@@ -23,6 +25,18 @@ export default async function HomePage() {
     console.error("Failed to fetch earthquakes:", error);
   }
 
+  // Fetch more comprehensive data for stats (M1+ last 7 days)
+  try {
+    const rawAll = await fetchAllPhilippineEarthquakes(7, 1.0);
+    allEarthquakes = rawAll.map(processEarthquake);
+  } catch (error) {
+    console.error("Failed to fetch all earthquakes:", error);
+    allEarthquakes = earthquakes; // Fallback
+  }
+
+  // Calculate stats
+  const stats = calculateStats(allEarthquakes);
+  
   // Get significant earthquakes
   const significantEarthquakes = earthquakes.filter((eq) => eq.magnitude >= 4.5);
 
@@ -108,18 +122,22 @@ export default async function HomePage() {
               </div>
 
               {/* Stats */}
-              <div className="mt-12 grid grid-cols-3 gap-8">
+              <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                 <div>
-                  <p className="text-3xl md:text-4xl font-bold">{earthquakes.length}</p>
-                  <p className="text-sm text-red-200">This week</p>
+                  <p className="text-3xl md:text-4xl font-bold">{stats.last24h}</p>
+                  <p className="text-sm text-red-200">Last 24 hours</p>
                 </div>
                 <div>
-                  <p className="text-3xl md:text-4xl font-bold">{significantEarthquakes.length}</p>
-                  <p className="text-sm text-red-200">M4.5+ events</p>
+                  <p className="text-3xl md:text-4xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-red-200">This week (M1+)</p>
                 </div>
                 <div>
-                  <p className="text-3xl md:text-4xl font-bold">{philippineCities.length}</p>
-                  <p className="text-sm text-red-200">Cities tracked</p>
+                  <p className="text-3xl md:text-4xl font-bold">{stats.m4Plus}</p>
+                  <p className="text-sm text-red-200">M4+ events</p>
+                </div>
+                <div>
+                  <p className="text-3xl md:text-4xl font-bold">{stats.m5Plus > 0 ? stats.m5Plus : philippineCities.length}</p>
+                  <p className="text-sm text-red-200">{stats.m5Plus > 0 ? "M5+ events" : "Cities tracked"}</p>
                 </div>
               </div>
             </div>
