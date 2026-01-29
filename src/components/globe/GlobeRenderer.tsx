@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Globe from 'globe.gl';
+import Globe, { GlobeInstance } from 'globe.gl';
 
 interface Earthquake {
   id: string;
@@ -25,7 +25,8 @@ export default function GlobeRenderer({
   showLabels = true 
 }: GlobeRendererProps) {
   const globeRef = useRef<HTMLDivElement>(null);
-  const globeInstance = useRef<ReturnType<typeof Globe> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globeInstance = useRef<GlobeInstance | null>(null);
   const [selectedQuake, setSelectedQuake] = useState<Earthquake | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -33,7 +34,7 @@ export default function GlobeRenderer({
     if (!globeRef.current || globeInstance.current) return;
 
     // Create globe
-    const globe = Globe()(globeRef.current)
+    const globe = new Globe(globeRef.current)
       .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
       .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
       .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
