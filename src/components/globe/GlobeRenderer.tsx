@@ -50,10 +50,11 @@ export default function GlobeRenderer({
       globe.controls().autoRotateSpeed = 0.5;
     }
 
-    // Enable zoom
+    // Enable zoom - extended range for detailed viewing
     globe.controls().enableZoom = true;
-    globe.controls().minDistance = 150;
-    globe.controls().maxDistance = 500;
+    globe.controls().minDistance = 101;  // Very close zoom (just above Earth surface)
+    globe.controls().maxDistance = 1000; // Far zoom to see full globe with context
+    globe.controls().zoomSpeed = 1.5;    // Faster zoom response
 
     globeInstance.current = globe;
     setIsLoaded(true);

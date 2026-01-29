@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { DynamicFooter } from "@/components/layout/DynamicFooter";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -19,24 +19,27 @@ const robotoMono = Roboto_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://lindol.ph"),
   title: {
-    default: "Lindol.ph - Philippines Earthquake Tracker | Real-time Alerts & Data",
-    template: "%s | Lindol.ph - Philippines Earthquake Tracker",
+    default: "Lindol.ph — Real-Time Global Earthquake Monitoring",
+    template: "%s | Lindol.ph",
   },
   description:
-    "Track earthquakes in the Philippines in real-time. Get instant alerts, view interactive maps, see historical data, and access earthquake preparedness information for every city and municipality.",
+    "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity in the Philippines and globally. Get instant alerts, view interactive maps, and stay prepared with earthquake safety information.",
   keywords: [
-    "Philippines earthquake",
-    "earthquake tracker",
     "lindol",
-    "PHIVOLCS",
-    "seismic activity",
+    "earthquake tracker",
+    "philippines earthquake",
+    "earthquake monitor",
     "earthquake map",
     "earthquake alert",
-    "Manila earthquake",
-    "Davao earthquake",
-    "Cebu earthquake",
-    "fault line",
-    "Philippine fault",
+    "seismic activity",
+    "PHIVOLCS",
+    "USGS earthquake",
+    "earthquake near me",
+    "earthquake safety",
+    "Pacific Ring of Fire",
+    "M1 earthquakes",
+    "real-time earthquake",
+    "philippine fault line",
   ],
   authors: [{ name: "Lindol.ph Team" }],
   creator: "Lindol.ph",
@@ -56,24 +59,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_PH",
     url: "https://lindol.ph",
-    siteName: "Lindol.ph - Philippines Earthquake Tracker",
-    title: "Lindol.ph - Philippines Earthquake Tracker | Real-time Alerts & Data",
+    siteName: "Lindol.ph",
+    title: "Lindol.ph — Real-Time Global Earthquake Monitoring",
     description:
-      "Track earthquakes in the Philippines in real-time. Get instant alerts, view interactive maps, see historical data, and access earthquake preparedness information.",
+      "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity in the Philippines and globally. Every tremor. Everywhere.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Lindol.ph - Philippines Earthquake Tracker",
+        alt: "Lindol.ph - Real-Time Earthquake Monitoring",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lindol.ph - Philippines Earthquake Tracker",
+    title: "Lindol.ph — Real-Time Earthquake Monitoring",
     description:
-      "Track earthquakes in the Philippines in real-time. Get instant alerts and access earthquake preparedness information.",
+      "Track earthquakes worldwide in real-time. M1+ data for the Philippines and global coverage.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -111,7 +114,7 @@ export default function RootLayout({
       >
         <Header />
         <main className="flex-1">{children}</main>
-        <Footer />
+        <DynamicFooter pageType="home" />
       </body>
     </html>
   );

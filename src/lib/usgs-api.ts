@@ -74,6 +74,14 @@ export const PHILIPPINES_BOUNDS = {
   maxLongitude: 127.0,
 };
 
+// Geographic bounds for different regions/countries
+export interface GeoBounds {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+}
+
 const USGS_BASE_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query';
 
 export async function fetchEarthquakes(query: EarthquakeQuery = {}): Promise<USGSEarthquake[]> {
@@ -115,6 +123,128 @@ export async function fetchPhilippineEarthquakes(days: number = 30, minMagnitude
     orderby: 'time',
     limit: 1000,
   });
+}
+
+// ============================================
+// GLOBAL EARTHQUAKE FUNCTIONS
+// ============================================
+
+// Fetch global earthquakes (no geographic bounds)
+export async function fetchGlobalEarthquakes(
+  days: number = 7,
+  minMagnitude: number = 4.5,
+  limit: number = 500
+): Promise<USGSEarthquake[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    minmagnitude: minMagnitude,
+    orderby: 'time',
+    limit,
+  });
+}
+
+// Fetch earthquakes by geographic bounds (for country/region)
+export async function fetchEarthquakesByBounds(
+  bounds: GeoBounds,
+  days: number = 30,
+  minMagnitude: number = 2.5,
+  limit: number = 1000
+): Promise<USGSEarthquake[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    minlatitude: bounds.minLatitude,
+    maxlatitude: bounds.maxLatitude,
+    minlongitude: bounds.minLongitude,
+    maxlongitude: bounds.maxLongitude,
+    minmagnitude: minMagnitude,
+    orderby: 'time',
+    limit,
+  });
+}
+
+// Fetch earthquakes near a city (by coordinates and radius)
+export async function fetchEarthquakesNearCity(
+  lat: number,
+  lon: number,
+  radiusKm: number = 200,
+  days: number = 30,
+  minMagnitude: number = 2.0,
+  limit: number = 500
+): Promise<USGSEarthquake[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    latitude: lat,
+    longitude: lon,
+    maxradiuskm: radiusKm,
+    minmagnitude: minMagnitude,
+    orderby: 'time',
+    limit,
+  });
+}
+
+// Fetch significant global earthquakes (M5+)
+export async function fetchSignificantGlobalEarthquakes(days: number = 30): Promise<USGSEarthquake[]> {
+  return fetchGlobalEarthquakes(days, 5.0, 500);
+}
+
+// Fetch recent large earthquakes (M6+) for alerts
+export async function fetchLargeEarthquakes(hours: number = 24): Promise<USGSEarthquake[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setTime(startDate.getTime() - hours * 60 * 60 * 1000);
+
+  return fetchEarthquakes({
+    starttime: startDate.toISOString(),
+    endtime: endDate.toISOString(),
+    minmagnitude: 6.0,
+    orderby: 'time',
+    limit: 100,
+  });
+}
+
+// Fetch earthquakes for statistics (global overview)
+export async function fetchGlobalStats(days: number = 7): Promise<{
+  total: number;
+  m4Plus: number;
+  m5Plus: number;
+  m6Plus: number;
+  m7Plus: number;
+  largest: USGSEarthquake | null;
+}> {
+  const earthquakes = await fetchGlobalEarthquakes(days, 4.0, 2000);
+  
+  const m4Plus = earthquakes.filter(eq => eq.properties.mag >= 4).length;
+  const m5Plus = earthquakes.filter(eq => eq.properties.mag >= 5).length;
+  const m6Plus = earthquakes.filter(eq => eq.properties.mag >= 6).length;
+  const m7Plus = earthquakes.filter(eq => eq.properties.mag >= 7).length;
+  
+  const largest = earthquakes.length > 0
+    ? earthquakes.reduce((max, eq) => eq.properties.mag > max.properties.mag ? eq : max)
+    : null;
+
+  return {
+    total: earthquakes.length,
+    m4Plus,
+    m5Plus,
+    m6Plus,
+    m7Plus,
+    largest,
+  };
 }
 
 // Time range options for filtering
