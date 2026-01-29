@@ -1,0 +1,21 @@
+# Nixpacks configuration for Earthquakes-Ultra
+# Ensures source files are copied BEFORE build runs
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = ["npm ci"]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
+
+# Disable caching to ensure fresh builds
+[variables]
+NO_CACHE = "true"
+NIXPACKS_NO_CACHE = "1"
