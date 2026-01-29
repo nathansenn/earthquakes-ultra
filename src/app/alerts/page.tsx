@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { philippineCities } from "@/data/philippine-cities";
 
 export default function AlertsPage() {
+  // Set page title
+  useEffect(() => {
+    document.title = "Earthquake Alerts | Lindol.ph";
+  }, []);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedCity, setSelectedCity] = useState("");

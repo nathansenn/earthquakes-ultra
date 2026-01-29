@@ -4,13 +4,20 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ProcessedEarthquake, processEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
 import { PHILIPPINES_BOUNDS } from "@/lib/usgs-api";
+import { EarthquakeMap } from "@/components/map";
 
 export default function MapPage() {
   const [earthquakes, setEarthquakes] = useState<ProcessedEarthquake[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuake, setSelectedQuake] = useState<ProcessedEarthquake | null>(null);
   const [days, setDays] = useState(7);
-  const [minMag, setMinMag] = useState(2.5);
+  const [minMag, setMinMag] = useState(1.0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Set page title
+  useEffect(() => {
+    document.title = "Live Earthquake Map | Lindol.ph";
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -49,17 +56,121 @@ export default function MapPage() {
     fetchData();
   }, [days, minMag]);
 
-  // Convert lat/lng to SVG coordinates
-  const latLngToSvg = (lat: number, lng: number) => {
-    const minLat = 4;
-    const maxLat = 22;
-    const minLng = 115;
-    const maxLng = 128;
-
-    const x = ((lng - minLng) / (maxLng - minLng)) * 800;
-    const y = ((maxLat - lat) / (maxLat - minLat)) * 1000;
-    return { x, y };
+  // Handle fullscreen toggle
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
+
+  // Handle escape key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
+
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900">
+        {/* Fullscreen header */}
+        <div className="absolute top-0 left-0 right-0 z-[1001] bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="font-semibold text-gray-900 dark:text-white">
+              🗺️ Live Earthquake Map
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {earthquakes.length} earthquakes
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* Filters */}
+            <div className="flex items-center gap-2">
+              <select
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+              >
+                <option value={1}>24 hours</option>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+              </select>
+              <select
+                value={minMag}
+                onChange={(e) => setMinMag(Number(e.target.value))}
+                className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+              >
+                <option value={1.0}>M1.0+</option>
+                <option value={2.0}>M2.0+</option>
+                <option value={2.5}>M2.5+</option>
+                <option value={4.0}>M4.0+</option>
+                <option value={5.0}>M5.0+</option>
+              </select>
+            </div>
+            <button
+              onClick={toggleFullscreen}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Fullscreen map */}
+        <div className="pt-14 h-full">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <svg className="w-12 h-12 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          ) : (
+            <EarthquakeMap
+              earthquakes={earthquakes}
+              height="100%"
+              selectedQuake={selectedQuake}
+              onEarthquakeClick={setSelectedQuake}
+            />
+          )}
+        </div>
+
+        {/* Selected quake info (bottom panel) */}
+        {selectedQuake && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-md w-[calc(100%-2rem)]">
+            <div className="flex items-start gap-3">
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0"
+                style={{ backgroundColor: getMagnitudeColor(selectedQuake.magnitude) }}
+              >
+                {selectedQuake.magnitude.toFixed(1)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                  {selectedQuake.place}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {selectedQuake.timeAgo} • {selectedQuake.depth.toFixed(1)} km deep
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedQuake(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -99,12 +210,22 @@ export default function MapPage() {
                 onChange={(e) => setMinMag(Number(e.target.value))}
                 className="bg-white/20 text-white border border-white/30 rounded-lg px-3 py-1.5 text-sm"
               >
+                <option value={1.0} className="text-gray-900">1.0+</option>
                 <option value={2.0} className="text-gray-900">2.0+</option>
                 <option value={2.5} className="text-gray-900">2.5+</option>
                 <option value={4.0} className="text-gray-900">4.0+</option>
                 <option value={5.0} className="text-gray-900">5.0+</option>
               </select>
             </div>
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-lg px-3 py-1.5 text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+              Fullscreen
+            </button>
           </div>
         </div>
       </section>
@@ -116,7 +237,7 @@ export default function MapPage() {
             {/* Map */}
             <div className="lg:col-span-2">
               <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-lg">
-                <div className="relative" style={{ paddingBottom: "125%" }}>
+                <div className="relative" style={{ height: "600px" }}>
                   {loading ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                       <svg className="w-12 h-12 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -125,76 +246,12 @@ export default function MapPage() {
                       </svg>
                     </div>
                   ) : (
-                    <svg
-                      viewBox="0 0 800 1000"
-                      className="absolute inset-0 w-full h-full"
-                      style={{ background: "linear-gradient(180deg, #1e40af 0%, #3b82f6 100%)" }}
-                    >
-                      {/* Philippines outline (simplified) */}
-                      <g fill="#22c55e" fillOpacity="0.3" stroke="#22c55e" strokeWidth="1">
-                        {/* Luzon */}
-                        <ellipse cx="320" cy="200" rx="120" ry="150" />
-                        {/* Visayas */}
-                        <ellipse cx="380" cy="500" rx="100" ry="80" />
-                        {/* Mindanao */}
-                        <ellipse cx="420" cy="700" rx="130" ry="120" />
-                        {/* Palawan */}
-                        <ellipse cx="180" cy="450" rx="30" ry="150" transform="rotate(-20 180 450)" />
-                      </g>
-
-                      {/* Grid lines */}
-                      <g stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.2">
-                        {[116, 118, 120, 122, 124, 126].map((lng) => {
-                          const { x } = latLngToSvg(10, lng);
-                          return <line key={lng} x1={x} y1="0" x2={x} y2="1000" />;
-                        })}
-                        {[6, 8, 10, 12, 14, 16, 18, 20].map((lat) => {
-                          const { y } = latLngToSvg(lat, 120);
-                          return <line key={lat} x1="0" y1={y} x2="800" y2={y} />;
-                        })}
-                      </g>
-
-                      {/* Earthquake markers */}
-                      {earthquakes.map((eq) => {
-                        const { x, y } = latLngToSvg(eq.latitude, eq.longitude);
-                        const radius = Math.max(4, eq.magnitude * 3);
-                        const color = getMagnitudeColor(eq.magnitude);
-                        const isSelected = selectedQuake?.id === eq.id;
-
-                        return (
-                          <g
-                            key={eq.id}
-                            onClick={() => setSelectedQuake(eq)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {/* Pulse animation for selected */}
-                            {isSelected && (
-                              <circle
-                                cx={x}
-                                cy={y}
-                                r={radius + 10}
-                                fill="none"
-                                stroke={color}
-                                strokeWidth="2"
-                                opacity="0.5"
-                              >
-                                <animate attributeName="r" from={radius} to={radius + 20} dur="1s" repeatCount="indefinite" />
-                                <animate attributeName="opacity" from="0.5" to="0" dur="1s" repeatCount="indefinite" />
-                              </circle>
-                            )}
-                            <circle
-                              cx={x}
-                              cy={y}
-                              r={radius}
-                              fill={color}
-                              fillOpacity="0.8"
-                              stroke="#fff"
-                              strokeWidth={isSelected ? 3 : 1}
-                            />
-                          </g>
-                        );
-                      })}
-                    </svg>
+                    <EarthquakeMap
+                      earthquakes={earthquakes}
+                      height="600px"
+                      selectedQuake={selectedQuake}
+                      onEarthquakeClick={setSelectedQuake}
+                    />
                   )}
                 </div>
 
@@ -203,6 +260,7 @@ export default function MapPage() {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Magnitude Scale</p>
                   <div className="flex flex-wrap gap-3">
                     {[
+                      { mag: "< 2.5", color: "#00ff00" },
                       { mag: "2.5-3.9", color: "#ffff00" },
                       { mag: "4.0-4.9", color: "#ffa500" },
                       { mag: "5.0-5.9", color: "#ff6600" },
@@ -261,6 +319,10 @@ export default function MapPage() {
                           {selectedQuake.intensity}
                         </p>
                       </div>
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <p>Coordinates: {selectedQuake.latitude.toFixed(4)}°N, {selectedQuake.longitude.toFixed(4)}°E</p>
+                      <p>Time: {selectedQuake.time.toLocaleString()}</p>
                     </div>
                     <a
                       href={selectedQuake.url}

@@ -1,45 +1,45 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchGlobalEarthquakes, fetchGlobalStats, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { fetchAllPhilippineEarthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
-import { seismicCountries, seismicRegions } from "@/data/countries";
-import { majorCities, getCitiesByPopulation } from "@/data/major-cities";
+import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 
 export const metadata: Metadata = {
-  title: "QuakeWatch - Global Earthquake Monitoring in Real-Time",
+  title: "Lindol.ph — Real-Time Global Earthquake Monitoring",
   description:
-    "Track earthquakes worldwide in real-time. Monitor seismic activity across all countries, major cities, and tectonic regions. Get instant alerts and stay prepared.",
+    "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity in the Philippines and globally. Every tremor. Everywhere.",
 };
 
 // Revalidate every 5 minutes
 export const revalidate = 300;
 
 export default async function HomePage() {
-  // Fetch global earthquakes
-  let earthquakes: ProcessedEarthquake[] = [];
-  let stats = { total: 0, m4Plus: 0, m5Plus: 0, m6Plus: 0, m7Plus: 0, largest: null as ProcessedEarthquake | null };
+  // Fetch Philippines M1+ earthquakes
+  let philippineEarthquakes: ProcessedEarthquake[] = [];
+  let globalEarthquakes: ProcessedEarthquake[] = [];
   
   try {
-    const rawEarthquakes = await fetchGlobalEarthquakes(7, 4.5, 100);
-    earthquakes = rawEarthquakes.map(processEarthquake);
+    // Get M1+ earthquakes for Philippines (last 7 days)
+    const rawPhilippine = await fetchAllPhilippineEarthquakes(7, 1.0);
+    philippineEarthquakes = rawPhilippine.map(processEarthquake);
     
-    const globalStats = await fetchGlobalStats(7);
-    stats = {
-      ...globalStats,
-      largest: globalStats.largest ? processEarthquake(globalStats.largest) : null,
-    };
+    // Get global M4+ earthquakes (last 7 days)
+    const rawGlobal = await fetchGlobalEarthquakes(7, 4.5, 50);
+    globalEarthquakes = rawGlobal.map(processEarthquake);
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
   }
 
-  // Get significant earthquakes
-  const significantEarthquakes = earthquakes.filter((eq) => eq.magnitude >= 5.5).slice(0, 5);
+  // Calculate Philippine stats
+  const phStats = calculateStats(philippineEarthquakes);
+
+  // Get significant Philippine earthquakes
+  const significantPH = philippineEarthquakes.filter((eq) => eq.magnitude >= 4.0).slice(0, 5);
   
-  // Get top cities by population
-  const topCities = getCitiesByPopulation(12);
-  
-  // Get extreme risk countries
-  const extremeRiskCountries = seismicCountries.filter(c => c.riskLevel === 'extreme').slice(0, 12);
+  // Combined recent earthquakes for display
+  const recentEarthquakes = [...philippineEarthquakes, ...globalEarthquakes]
+    .sort((a, b) => b.time.getTime() - a.time.getTime())
+    .slice(0, 10);
 
   return (
     <>
@@ -58,17 +58,18 @@ export default async function HomePage() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-sm mb-6">
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                Live Global Monitoring
+                Live M1+ Monitoring
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                Global
+                Every
                 <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-400">Earthquake</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-400">Tremor.</span>
                 <br />
-                Monitoring
+                Everywhere.
               </h1>
               <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-lg">
-                Track seismic activity worldwide in real-time. Monitor {seismicCountries.length} countries, {majorCities.length}+ major cities, and get instant alerts for significant earthquakes.
+                Real-time earthquake monitoring for the Philippines and the world. 
+                Track M1+ earthquakes across {philippineCities.length} cities and {philippineRegions.length} regions.
               </p>
 
               {/* CTA Buttons */}
@@ -99,51 +100,51 @@ export default async function HomePage() {
                   Earthquakes Near Me
                 </Link>
                 <Link
-                  href="/globe"
+                  href="/earthquakes"
                   className="px-6 py-3 bg-white/10 text-white rounded-lg font-semibold hover:bg-white/20 transition-colors border border-white/30 flex items-center gap-2"
                 >
-                  <span>🌐</span>
-                  View 3D Globe
+                  <span>📊</span>
+                  View All M1+ Data
                 </Link>
               </div>
 
-              {/* Stats */}
+              {/* Stats - M1+ focused */}
               <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                 <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                  <p className="text-3xl md:text-4xl font-bold">{stats.m4Plus || earthquakes.length}</p>
-                  <p className="text-sm text-gray-400">M4+ this week</p>
+                  <p className="text-3xl md:text-4xl font-bold">{phStats.total}</p>
+                  <p className="text-sm text-gray-400">M1+ this week</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                  <p className="text-3xl md:text-4xl font-bold">{stats.m5Plus || significantEarthquakes.length}</p>
-                  <p className="text-sm text-gray-400">M5+ events</p>
+                  <p className="text-3xl md:text-4xl font-bold">{phStats.last24h}</p>
+                  <p className="text-sm text-gray-400">Last 24 hours</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                  <p className="text-3xl md:text-4xl font-bold">{seismicCountries.length}</p>
-                  <p className="text-sm text-gray-400">Countries monitored</p>
+                  <p className="text-3xl md:text-4xl font-bold">{phStats.m4Plus}</p>
+                  <p className="text-sm text-gray-400">M4+ events</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                  <p className="text-3xl md:text-4xl font-bold">{majorCities.length}+</p>
-                  <p className="text-sm text-gray-400">Cities tracked</p>
+                  <p className="text-3xl md:text-4xl font-bold">{phStats.maxMagnitude.toFixed(1)}</p>
+                  <p className="text-sm text-gray-400">Largest</p>
                 </div>
               </div>
             </div>
 
-            {/* Right content - Latest Significant Earthquakes */}
+            {/* Right content - Latest Earthquakes */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  Latest Significant Earthquakes
+                  Latest Earthquakes
                 </h2>
                 <Link
-                  href="/global"
+                  href="/earthquakes"
                   className="text-sm text-orange-300 hover:text-white transition-colors"
                 >
                   View all →
                 </Link>
               </div>
               <div className="space-y-3">
-                {earthquakes.slice(0, 6).map((eq) => (
+                {recentEarthquakes.slice(0, 6).map((eq) => (
                   <a
                     key={eq.id}
                     href={eq.url}
@@ -157,6 +158,10 @@ export default async function HomePage() {
                           ? "bg-gradient-to-br from-red-500 to-red-700 text-white shadow-lg shadow-red-500/30"
                           : eq.magnitude >= 5
                           ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white"
+                          : eq.magnitude >= 4
+                          ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-gray-900"
+                          : eq.magnitude >= 3
+                          ? "bg-gradient-to-br from-green-400 to-green-600 text-white"
                           : "bg-white/20 text-white"
                       }`}
                     >
@@ -173,7 +178,7 @@ export default async function HomePage() {
                     )}
                   </a>
                 ))}
-                {earthquakes.length === 0 && (
+                {recentEarthquakes.length === 0 && (
                   <p className="text-sm text-gray-400 text-center py-4">
                     Loading earthquake data...
                   </p>
@@ -200,20 +205,71 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Recent Global Earthquakes Section */}
+      {/* M1+ Philippine Stats Section */}
+      <section className="py-12 bg-white dark:bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-2xl p-6 md:p-8 border border-red-100 dark:border-red-800/50">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  🇵🇭 Philippines M1+ Earthquakes
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Complete seismic data including micro-earthquakes
+                </p>
+              </div>
+              <Link
+                href="/earthquakes"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                View All Data →
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{phStats.m1Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M1+</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{phStats.m2Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M2+</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{phStats.m3Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M3+</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-yellow-600">{phStats.m4Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M4+</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-orange-600">{phStats.m5Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M5+</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl md:text-3xl font-bold text-red-600">{phStats.m6Plus}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">M6+</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent Earthquakes Section */}
       <section className="py-16 bg-white dark:bg-gray-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Recent Global Earthquakes
+                Recent Earthquakes
               </h2>
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Last 7 days • Magnitude 4.5 and above
+                Last 7 days • All magnitudes
               </p>
             </div>
             <Link
-              href="/global"
+              href="/earthquakes"
               className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               View All
@@ -233,11 +289,11 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <EarthquakeList earthquakes={earthquakes.slice(0, 10)} />
+          <EarthquakeList earthquakes={philippineEarthquakes.slice(0, 10)} />
 
           <div className="mt-8 text-center sm:hidden">
             <Link
-              href="/global"
+              href="/earthquakes"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-600 text-white rounded-lg hover:from-red-600 hover:to-orange-700 transition-all"
             >
               View All Earthquakes
@@ -264,15 +320,15 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-              Explore by Region
+              Browse by Region
             </h2>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Monitor seismic activity in specific geographic regions
+              Monitor seismic activity in Philippine regions
             </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {seismicRegions.map((region) => (
+            {philippineRegions.slice(0, 8).map((region) => (
               <Link
                 key={region.slug}
                 href={`/region/${region.slug}`}
@@ -282,129 +338,18 @@ export default async function HomePage() {
                   {region.name}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {region.countries.length} countries
+                  Region {region.code}
                 </p>
               </Link>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* High-Risk Countries Section */}
-      <section className="py-16 bg-white dark:bg-gray-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-              Highest Seismic Risk Countries
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Countries on the Pacific Ring of Fire and major fault zones
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {extremeRiskCountries.map((country) => (
-              <Link
-                key={country.slug}
-                href={`/country/${country.slug}`}
-                className="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-600 hover:shadow-lg transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center group-hover:bg-red-200 dark:group-hover:bg-red-800/30 transition-colors">
-                    <span className="text-lg">🌍</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                      {country.name}
-                    </h3>
-                    <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                      Extreme Risk
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
 
           <div className="mt-8 text-center">
             <Link
-              href="/countries"
+              href="/philippines"
               className="inline-flex items-center gap-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
             >
-              View all {seismicCountries.length} countries
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Major Cities Section */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-              Major Cities in Seismic Zones
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Track earthquakes near the world's most at-risk metropolitan areas
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {topCities.map((city) => (
-              <Link
-                key={city.slug}
-                href={`/city/${city.slug}`}
-                className="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-600 hover:shadow-lg transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center group-hover:bg-orange-200 dark:group-hover:bg-orange-800/30 transition-colors">
-                    <svg
-                      className="w-5 h-5 text-orange-600 dark:text-orange-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                      {city.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {city.country}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-8 text-center">
-            <Link
-              href="/cities"
-              className="inline-flex items-center gap-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
-            >
-              View all {majorCities.length} cities
+              View all {philippineRegions.length} regions
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -428,10 +373,10 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-              Why Use QuakeWatch?
+              Why Lindol.ph?
             </h2>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Comprehensive global earthquake information at your fingertips
+              Complete earthquake information at your fingertips
             </p>
           </div>
 
@@ -439,32 +384,45 @@ export default async function HomePage() {
             {/* Feature 1 */}
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">🌍</span>
+                <span className="text-2xl">📊</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Global Coverage
+                M1+ Comprehensive Data
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Monitor earthquakes worldwide with data from USGS covering every continent and ocean.
+                Track ALL earthquakes including micro-earthquakes. Most sites only show M4+. We show M1+.
               </p>
             </div>
 
             {/* Feature 2 */}
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
               <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">⚡</span>
+                <span className="text-2xl">🇵🇭</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Real-time Updates
+                Philippines Focus
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Data refreshed every minute with automatic alerts for significant seismic events.
+                Detailed coverage for all {philippineCities.length} Philippine cities and {philippineRegions.length} regions. Built for Filipinos.
               </p>
             </div>
 
             {/* Feature 3 */}
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-2xl">⚡</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Real-time Updates
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Data refreshed every minute from USGS. Get the latest seismic activity as it happens.
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4">
                 <span className="text-2xl">🗺️</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
@@ -475,29 +433,16 @@ export default async function HomePage() {
               </p>
             </div>
 
-            {/* Feature 4 */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">📍</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Location-based
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Find earthquakes near any city or use your current location for personalized monitoring.
-              </p>
-            </div>
-
             {/* Feature 5 */}
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">📊</span>
+                <span className="text-2xl">🌋</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Statistical Analysis
+                Volcano Monitoring
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                View trends, historical data, and seismic risk assessments for any region.
+                Track volcanic activity and seismic-volcanic correlations for Philippine volcanoes.
               </p>
             </div>
 
@@ -524,7 +469,7 @@ export default async function HomePage() {
             Stay Informed, Stay Safe
           </h2>
           <p className="text-lg text-red-100 mb-8">
-            Whether you're in Tokyo, Los Angeles, Istanbul, or Manila — QuakeWatch keeps you informed about seismic activity in real-time.
+            &quot;Lindol&quot; is Filipino for earthquake. We track every tremor so you don&apos;t have to worry.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -550,12 +495,14 @@ export default async function HomePage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            name: "QuakeWatch",
-            description: "Global earthquake monitoring in real-time",
-            url: "https://quakewatch.io",
+            name: "Lindol.ph",
+            alternateName: "Lindol Philippines",
+            description: "Real-time earthquake monitoring for the Philippines",
+            url: "https://lindol.ph",
+            inLanguage: ["en", "fil"],
             potentialAction: {
               "@type": "SearchAction",
-              target: "https://quakewatch.io/search?q={search_term_string}",
+              target: "https://lindol.ph/search?q={search_term_string}",
               "query-input": "required name=search_term_string",
             },
           }),

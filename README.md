@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lindol.ph — Real-Time Global Earthquake Monitoring
+
+🌍 **Every Tremor. Everywhere.**
+
+Lindol.ph is a real-time earthquake monitoring platform focused on the Philippines, with global coverage. "Lindol" is Filipino for "earthquake."
+
+## Features
+
+- 📊 **M1+ Earthquake Data** - Track ALL earthquakes including micro-earthquakes (most sites only show M4+)
+- 🇵🇭 **Philippines Focus** - Detailed coverage for 150+ cities and 17 regions
+- ⚡ **Real-Time Updates** - Data refreshed every minute from USGS
+- 🗺️ **Interactive Maps** - 2D map and 3D globe visualization
+- 🌋 **Volcano Monitoring** - Track seismic-volcanic correlations for Philippine volcanoes
+- 📍 **Near Me** - Find earthquakes near your location
+- 🔔 **Custom Alerts** - Set up earthquake notifications
+- 📚 **Safety Resources** - Earthquake preparedness guides
+
+## Tech Stack
+
+- **Framework:** Next.js 16 with App Router
+- **Styling:** Tailwind CSS 4
+- **3D Globe:** Three.js, React Three Fiber, globe.gl
+- **Data Source:** USGS Earthquake API
+- **Language:** TypeScript
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/` - Homepage with global stats and recent earthquakes
+- `/earthquakes` - All earthquakes (M1+) with filters
+- `/philippines` - Browse by city and region
+- `/philippines/[city]` - City-specific earthquake data
+- `/region/[region]` - Regional earthquake data
+- `/map` - Interactive 2D map
+- `/globe` - 3D globe visualization
+- `/volcanoes` - Philippine volcano monitoring
+- `/near-me` - Earthquakes near your location
+- `/alerts` - Set up earthquake alerts
+- `/preparedness` - Earthquake safety guide
 
-## Learn More
+## Data Sources
 
-To learn more about Next.js, take a look at the following resources:
+- **USGS Earthquake Hazards Program** - https://earthquake.usgs.gov/
+- **PHIVOLCS** - Philippine Institute of Volcanology and Seismology
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Emergency Contacts (Philippines)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **National Emergency:** 911
+- **Red Cross:** 143
+- **NDRRMC:** (02) 8911-5061
+- **PHIVOLCS:** (02) 8426-1468
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is for educational and public safety purposes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+*Stay informed. Stay prepared. Stay safe.*

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCityBySlug, getAllCitySlugs, formatPopulation } from "@/data/major-cities";
 import { getCountryByCode } from "@/data/countries";
-import { fetchEarthquakesNearCity, processEarthquake } from "@/lib/usgs-api";
+import { fetchEarthquakesNearCity, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 
 interface Props {
@@ -42,7 +42,7 @@ export default async function CityPage({ params }: Props) {
   const country = getCountryByCode(city.countryCode);
 
   // Fetch earthquakes near this city
-  let earthquakes;
+  let earthquakes: ProcessedEarthquake[] = [];
   try {
     const rawEarthquakes = await fetchEarthquakesNearCity(
       city.lat,
@@ -149,7 +149,7 @@ export default async function CityPage({ params }: Props) {
                 </span>
               </div>
               {earthquakes.length > 0 ? (
-                <EarthquakeList earthquakes={earthquakes} showPagination={true} />
+                <EarthquakeList earthquakes={earthquakes} />
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">

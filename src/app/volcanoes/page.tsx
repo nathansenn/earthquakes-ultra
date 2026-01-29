@@ -1,16 +1,16 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS } from "@/data/philippine-volcanoes";
-import { fetchPhilippineEarthquakes, processEarthquake } from "@/lib/usgs-api";
+import { fetchAllPhilippineEarthquakes, processEarthquake } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction";
 
 export const metadata: Metadata = {
   title: "Philippine Volcanoes | Strategic Monitoring Dashboard",
   description:
-    "Strategic preparedness monitoring for Philippine volcanoes. Risk assessments based on peer-reviewed seismic-volcanic correlation models. Know before you need to know.",
+    "Strategic preparedness monitoring for Philippine volcanoes. Risk assessments based on peer-reviewed seismic-volcanic correlation models. M1+ seismicity analysis.",
   openGraph: {
     title: "Philippine Volcano Monitoring | Lindol.ph",
-    description: "Strategic preparedness tool for Philippine volcanic hazards. Not fear - preparation.",
+    description: "Strategic preparedness tool for Philippine volcanic hazards with M1+ seismic data.",
   },
 };
 
@@ -21,7 +21,8 @@ export default async function VolcanoesPage() {
   let assessments: Awaited<ReturnType<typeof assessAllVolcanoes>> = [];
   
   try {
-    const rawEarthquakes = await fetchPhilippineEarthquakes(30, 4.0); // M4+ last 30 days
+    // Fetch M2+ earthquakes for volcanic assessment (M1 too numerous, M4 too few)
+    const rawEarthquakes = await fetchAllPhilippineEarthquakes(30, 2.0);
     const earthquakes: Earthquake[] = rawEarthquakes.map(eq => ({
       id: eq.id,
       magnitude: eq.properties.mag,

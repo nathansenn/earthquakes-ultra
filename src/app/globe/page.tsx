@@ -1,12 +1,12 @@
 import { Metadata } from 'next';
-import { fetchPhilippineEarthquakes, processEarthquake } from '@/lib/usgs-api';
+import { fetchAllPhilippineEarthquakes, processEarthquake } from '@/lib/usgs-api';
 import EarthquakeGlobe from '@/components/globe/EarthquakeGlobe';
 import Link from 'next/link';
 import EarthquakeTicker from '@/components/globe/EarthquakeTicker';
 
 export const metadata: Metadata = {
-  title: '3D Earthquake Globe | Lindol.ph - Philippines Earthquake Tracker',
-  description: 'View earthquakes around the world on an interactive 3D globe. Watch real-time seismic activity with pulsing indicators for recent earthquakes.',
+  title: '3D Earthquake Globe',
+  description: 'View earthquakes around the world on an interactive 3D globe. Watch real-time seismic activity with pulsing indicators for recent earthquakes. M1+ data available.',
   openGraph: {
     title: '3D Earthquake Globe | Lindol.ph',
     description: 'Interactive 3D visualization of global earthquake activity',
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 export const revalidate = 60; // Revalidate every minute
 
 export default async function GlobePage() {
-  // Get earthquakes from the last 24 hours worldwide
-  const rawEarthquakes = await fetchPhilippineEarthquakes(1, 2.5);
+  // Get M1+ earthquakes from the last 24 hours
+  const rawEarthquakes = await fetchAllPhilippineEarthquakes(1, 1.0);
   const earthquakes = rawEarthquakes.map(processEarthquake);
 
   const lastHourCount = earthquakes.filter(
@@ -49,7 +49,7 @@ export default async function GlobePage() {
             <div className="flex gap-4">
               <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-red-400">{earthquakes.length}</p>
-                <p className="text-xs text-gray-400">Last 24h</p>
+                <p className="text-xs text-gray-400">M1+ (24h)</p>
               </div>
               <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-orange-400">{lastHourCount}</p>

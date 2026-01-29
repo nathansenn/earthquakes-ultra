@@ -21,6 +21,12 @@ export default function NearMePage() {
     "idle" | "requesting" | "granted" | "denied"
   >("idle");
   const [radiusKm, setRadiusKm] = useState(300);
+  const [minMag, setMinMag] = useState(1.0);
+
+  // Set page title
+  useEffect(() => {
+    document.title = "Earthquakes Near Me | Lindol.ph";
+  }, []);
 
   const fetchNearbyEarthquakes = useCallback(
     async (lat: number, lng: number) => {
@@ -39,9 +45,9 @@ export default function NearMePage() {
           latitude: lat.toString(),
           longitude: lng.toString(),
           maxradiuskm: radiusKm.toString(),
-          minmagnitude: "2.0",
+          minmagnitude: minMag.toString(),
           orderby: "time",
-          limit: "100",
+          limit: "500",
         });
 
         const response = await fetch(
@@ -71,7 +77,7 @@ export default function NearMePage() {
         setLoading(false);
       }
     },
-    [radiusKm]
+    [radiusKm, minMag]
   );
 
   const requestLocation = () => {
@@ -121,7 +127,7 @@ export default function NearMePage() {
     if (userLocation) {
       fetchNearbyEarthquakes(userLocation.lat, userLocation.lng);
     }
-  }, [radiusKm, userLocation, fetchNearbyEarthquakes]);
+  }, [radiusKm, minMag, userLocation, fetchNearbyEarthquakes]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -211,18 +217,34 @@ export default function NearMePage() {
                 Location: {userLocation.lat.toFixed(4)},{" "}
                 {userLocation.lng.toFixed(4)}
               </div>
-              <div className="flex items-center gap-4">
-                <label className="text-sm text-green-100">Search radius:</label>
-                <select
-                  value={radiusKm}
-                  onChange={(e) => setRadiusKm(Number(e.target.value))}
-                  className="bg-white/20 text-white border border-white/30 rounded-lg px-3 py-1 text-sm"
-                >
-                  <option value={100} className="text-gray-900">100 km</option>
-                  <option value={200} className="text-gray-900">200 km</option>
-                  <option value={300} className="text-gray-900">300 km</option>
-                  <option value={500} className="text-gray-900">500 km</option>
-                </select>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-green-100">Radius:</label>
+                  <select
+                    value={radiusKm}
+                    onChange={(e) => setRadiusKm(Number(e.target.value))}
+                    className="bg-white/20 text-white border border-white/30 rounded-lg px-3 py-1 text-sm"
+                  >
+                    <option value={100} className="text-gray-900">100 km</option>
+                    <option value={200} className="text-gray-900">200 km</option>
+                    <option value={300} className="text-gray-900">300 km</option>
+                    <option value={500} className="text-gray-900">500 km</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-green-100">Min Magnitude:</label>
+                  <select
+                    value={minMag}
+                    onChange={(e) => setMinMag(Number(e.target.value))}
+                    className="bg-white/20 text-white border border-white/30 rounded-lg px-3 py-1 text-sm"
+                  >
+                    <option value={1.0} className="text-gray-900">M1.0+</option>
+                    <option value={2.0} className="text-gray-900">M2.0+</option>
+                    <option value={3.0} className="text-gray-900">M3.0+</option>
+                    <option value={4.0} className="text-gray-900">M4.0+</option>
+                    <option value={5.0} className="text-gray-900">M5.0+</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}

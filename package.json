@@ -1,10 +1,11 @@
 {
-  "name": "earthquakes-ultra",
-  "version": "0.2.0",
+  "name": "lindol-ph",
+  "version": "1.0.0",
+  "description": "Lindol.ph - Real-Time Global Earthquake Monitoring for the Philippines",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "prebuild": "echo 'Building v0.2.0 with volcanoes page - $(date)'",
+    "prebuild": "echo 'Building Lindol.ph v1.0.0 - $(date)'",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint"
@@ -12,10 +13,13 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
+    "@types/leaflet": "^1.9.21",
     "globe.gl": "^2.45.0",
+    "leaflet": "^1.9.4",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-leaflet": "^5.0.0",
     "three": "^0.182.0"
   },
   "devDependencies": {
@@ -28,5 +32,15 @@
     "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "keywords": [
+    "earthquake",
+    "lindol",
+    "philippines",
+    "seismic",
+    "monitoring",
+    "real-time",
+    "USGS",
+    "PHIVOLCS"
+  ]
 }

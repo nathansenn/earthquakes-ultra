@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCountryBySlug, getAllCountrySlugs, seismicRegions } from "@/data/countries";
 import { getCitiesByCountry } from "@/data/major-cities";
-import { fetchEarthquakesByBounds, processEarthquake } from "@/lib/usgs-api";
+import { fetchEarthquakesByBounds, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 
 interface Props {
@@ -46,13 +46,12 @@ export default async function CountryPage({ params }: Props) {
     maxLongitude: country.bounds.maxLon,
   };
 
-  let earthquakes;
+  let earthquakes: ProcessedEarthquake[] = [];
   try {
-    const rawEarthquakes = await fetchEarthquakesByBounds(bounds, 30, 2.5, 500);
+    const rawEarthquakes = await fetchEarthquakesByBounds(bounds, 30, 1.0, 500);
     earthquakes = rawEarthquakes.map(processEarthquake);
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
-    earthquakes = [];
   }
 
   // Get cities in this country
@@ -157,7 +156,7 @@ export default async function CountryPage({ params }: Props) {
                 Recent Earthquakes ({earthquakes.length})
               </h2>
               {earthquakes.length > 0 ? (
-                <EarthquakeList earthquakes={earthquakes} showPagination={true} />
+                <EarthquakeList earthquakes={earthquakes} />
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                   No earthquakes M2.5+ recorded in the last 30 days.

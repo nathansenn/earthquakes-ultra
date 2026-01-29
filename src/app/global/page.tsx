@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { fetchGlobalEarthquakes, processEarthquake } from "@/lib/usgs-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
-import { EarthquakeFilters } from "@/components/filters/EarthquakeFilters";
+import EarthquakeFilters from "@/components/filters/EarthquakeFilters";
 
 export const metadata: Metadata = {
   title: "Global Earthquakes - All Worldwide Seismic Activity",
@@ -92,7 +92,7 @@ export default async function GlobalPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
               All Earthquakes ({earthquakes.length})
             </h2>
-            <EarthquakeList earthquakes={earthquakes} showPagination={true} />
+            <EarthquakeList earthquakes={earthquakes} />
           </div>
 
           {/* Info Box */}

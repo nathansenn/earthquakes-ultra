@@ -53,7 +53,7 @@ export default async function CityPage({ params }: Props) {
     notFound();
   }
 
-  // Fetch earthquakes near this city
+  // Fetch M1+ earthquakes near this city
   let earthquakes: (ProcessedEarthquake & { distanceKm: number })[] = [];
   try {
     const raw = await fetchEarthquakesNearLocation(
@@ -61,7 +61,7 @@ export default async function CityPage({ params }: Props) {
       city.longitude,
       200, // 200km radius
       90,  // 90 days
-      2.0
+      1.0  // M1+ earthquakes
     );
     earthquakes = raw.map((eq) => {
       const processed = processEarthquake(eq);

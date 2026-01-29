@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { philippineRegions, getCitiesByRegion, City } from "@/data/philippine-cities";
-import { fetchPhilippineEarthquakes, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { fetchAllPhilippineEarthquakes, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
 
 interface Props {
   params: Promise<{ region: string }>;
@@ -46,10 +46,10 @@ export default async function RegionPage({ params }: Props) {
 
   const cities = getCitiesByRegion(region.code);
 
-  // Fetch recent earthquakes for Philippines
+  // Fetch recent M1+ earthquakes for Philippines
   let earthquakes: ProcessedEarthquake[] = [];
   try {
-    const raw = await fetchPhilippineEarthquakes(30, 2.5);
+    const raw = await fetchAllPhilippineEarthquakes(30, 1.0);
     earthquakes = raw.map(processEarthquake);
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
