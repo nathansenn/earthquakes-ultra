@@ -42,12 +42,21 @@ const SOURCE_OPTIONS = [
   { value: 'phivolcs', label: 'PHIVOLCS' },
 ];
 
+// Depth filter options (km)
+const DEPTH_OPTIONS = [
+  { value: '', label: 'All Depths' },
+  { value: 'shallow', label: 'Shallow (<70km)' },
+  { value: 'intermediate', label: 'Intermediate (70-300km)' },
+  { value: 'deep', label: 'Deep (>300km)' },
+];
+
 export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClientProps) {
   const [earthquakes, setEarthquakes] = useState(initialEarthquakes);
   const [minMagnitude, setMinMagnitude] = useState<MagnitudeFilter>(1);
   const [timeRange, setTimeRange] = useState<TimeRange>("7d");
   const [region, setRegion] = useState('');
   const [source, setSource] = useState('');
+  const [depthFilter, setDepthFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -112,6 +121,18 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
     }
   }, [timeRange, fetchHistoricalData, initialEarthquakes]);
 
+  // Region bounding boxes for filtering
+  const regionBounds: Record<string, { minLat: number; maxLat: number; minLon: number; maxLon: number }> = {
+    philippines: { minLat: 4.5, maxLat: 21.5, minLon: 116, maxLon: 127 },
+    japan: { minLat: 24, maxLat: 46, minLon: 122, maxLon: 154 },
+    indonesia: { minLat: -11, maxLat: 6, minLon: 95, maxLon: 141 },
+    newzealand: { minLat: -48, maxLat: -34, minLon: 165, maxLon: 179 },
+    usa: { minLat: 24, maxLat: 50, minLon: -125, maxLon: -66 },
+    europe: { minLat: 35, maxLat: 72, minLon: -25, maxLon: 45 },
+    chile: { minLat: -56, maxLat: -17, minLon: -76, maxLon: -66 },
+    mexico: { minLat: 14, maxLat: 33, minLon: -118, maxLon: -86 },
+  };
+
   // Filter earthquakes based on selected criteria
   const filteredEarthquakes = useMemo(() => {
     const now = Date.now();
@@ -123,7 +144,39 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
       const meetsTimeRange = eq.time.getTime() >= cutoffTime;
       const meetsSearch = !searchQuery || 
         eq.place.toLowerCase().includes(searchQuery.toLowerCase());
-      return meetsMinMag && meetsTimeRange && meetsSearch;
+      
+      // Region filter
+      let meetsRegion = true;
+      if (region) {
+        const bounds = regionBounds[region];
+        if (bounds) {
+          meetsRegion = eq.latitude >= bounds.minLat && 
+                        eq.latitude <= bounds.maxLat && 
+                        eq.longitude >= bounds.minLon && 
+                        eq.longitude <= bounds.maxLon;
+        }
+      }
+      
+      // Source filter
+      const meetsSource = !source || (eq as any).source === source.toLowerCase();
+      
+      // Depth filter
+      let meetsDepth = true;
+      if (depthFilter) {
+        switch (depthFilter) {
+          case 'shallow':
+            meetsDepth = eq.depth < 70;
+            break;
+          case 'intermediate':
+            meetsDepth = eq.depth >= 70 && eq.depth <= 300;
+            break;
+          case 'deep':
+            meetsDepth = eq.depth > 300;
+            break;
+        }
+      }
+      
+      return meetsMinMag && meetsTimeRange && meetsSearch && meetsRegion && meetsSource && meetsDepth;
     });
 
     // Sort
@@ -144,7 +197,7 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
     });
 
     return filtered;
-  }, [earthquakes, minMagnitude, timeRange, searchQuery, sortBy, sortOrder]);
+  }, [earthquakes, minMagnitude, timeRange, searchQuery, region, source, depthFilter, sortBy, sortOrder]);
 
   // Calculate stats for filtered earthquakes
   const stats = useMemo(() => calculateStats(filteredEarthquakes), [filteredEarthquakes]);
@@ -301,6 +354,20 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
                   className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   {SOURCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Depth Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Depth:</span>
+                <select
+                  value={depthFilter}
+                  onChange={(e) => setDepthFilter(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  {DEPTH_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
