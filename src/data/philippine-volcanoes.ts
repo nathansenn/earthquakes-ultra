@@ -98,9 +98,9 @@ export const PHILIPPINE_VOLCANOES: Volcano[] = [
     monitoringStations: 12,
     hasHazardMap: true,
     nearbyPopulation: 1200000,
-    alertLevel: 0,
+    alertLevel: 3,
     riskFactors: ['frequent_eruptions', 'pyroclastic_flows', 'lahars', 'population_exposure'],
-    description: 'Most active volcano in Philippines. Perfect cone shape. Most recent effusive eruption in 2024.'
+    description: 'Most active volcano in Philippines. Perfect cone shape. Ongoing eruption since 2024 with lava flows, PDCs, and Strombolian activity.'
   },
   {
     id: '273054',
@@ -136,9 +136,9 @@ export const PHILIPPINE_VOLCANOES: Volcano[] = [
     monitoringStations: 6,
     hasHazardMap: true,
     nearbyPopulation: 180000,
-    alertLevel: 0,
+    alertLevel: 1,
     riskFactors: ['phreatic_eruptions', 'frequent_unrest'],
-    description: 'Frequent phreatic (steam-driven) eruptions. Most recent activity in 2022.'
+    description: 'Frequent phreatic (steam-driven) eruptions. Phreatic eruption April 2025, ongoing elevated unrest.'
   },
   {
     id: '273020',

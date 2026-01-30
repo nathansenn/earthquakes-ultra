@@ -1,9 +1,11 @@
 // Multi-Source Earthquake API Aggregator
-// Combines data from USGS, EMSC, JMA, GeoNet for comprehensive M1+ coverage
+// Combines data from USGS, EMSC, JMA, GeoNet, and PHIVOLCS for comprehensive M1+ coverage
+
+import { getPhilippinesEarthquakes, ProcessedEarthquake as DBProcessedEarthquake } from './db-queries';
 
 export interface UnifiedEarthquake {
   id: string;
-  source: 'usgs' | 'emsc' | 'jma' | 'geonet';
+  source: 'usgs' | 'emsc' | 'jma' | 'geonet' | 'phivolcs';
   magnitude: number;
   magnitudeType: string;
   place: string;
@@ -125,6 +127,39 @@ function parseJMACoords(cod: string): { lat: number; lon: number; depth: number 
   return { lat: 35.6762, lon: 139.6503, depth: 10 }; // Default to Tokyo
 }
 
+// PHIVOLCS data from local SQLite database
+// Covers: Philippines with detailed M1+ data from PHIVOLCS scraper
+function fetchPHIVOLCS(hours: number = 24, minMag: number = 1.0): UnifiedEarthquake[] {
+  try {
+    const days = Math.ceil(hours / 24);
+    const localData = getPhilippinesEarthquakes(days, minMag, 2000);
+    
+    // Filter to exact hours and convert to UnifiedEarthquake format
+    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
+    
+    return localData
+      .filter(eq => eq.time.getTime() >= cutoffTime)
+      .map(eq => ({
+        id: eq.id,
+        source: 'phivolcs' as const,
+        magnitude: eq.magnitude,
+        magnitudeType: eq.magnitudeType || 'Ms',
+        place: eq.place,
+        time: eq.time,
+        latitude: eq.latitude,
+        longitude: eq.longitude,
+        depth: eq.depth,
+        url: eq.url || 'https://earthquake.phivolcs.dost.gov.ph/',
+        felt: eq.felt,
+        tsunami: eq.tsunami,
+        region: eq.region || 'Philippines',
+      }));
+  } catch (error) {
+    console.error('PHIVOLCS fetch error:', error);
+    return [];
+  }
+}
+
 // GeoNet API (New Zealand)
 async function fetchGeoNet(limit: number = 500): Promise<UnifiedEarthquake[]> {
   // GeoNet uses MMI (Modified Mercalli Intensity), -1 = unnoticeable = M1+
@@ -205,7 +240,10 @@ export async function fetchGlobalEarthquakesMultiSource(
 ): Promise<UnifiedEarthquake[]> {
   const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   
-  // Fetch from all sources in parallel
+  // Fetch PHIVOLCS from local database (synchronous)
+  const phivolcsData = fetchPHIVOLCS(hours, minMagnitude);
+  
+  // Fetch from all other sources in parallel
   const [usgsData, emscData, jmaData, geonetData] = await Promise.all([
     fetchUSGS(startTime, minMagnitude, 5000),
     fetchEMSC(startTime, minMagnitude, 2000),
@@ -213,15 +251,15 @@ export async function fetchGlobalEarthquakesMultiSource(
     fetchGeoNet(500),
   ]);
   
-  console.log(`Fetched: USGS=${usgsData.length}, EMSC=${emscData.length}, JMA=${jmaData.length}, GeoNet=${geonetData.length}`);
+  console.log(`Fetched: USGS=${usgsData.length}, EMSC=${emscData.length}, JMA=${jmaData.length}, GeoNet=${geonetData.length}, PHIVOLCS=${phivolcsData.length}`);
   
   // Filter JMA and GeoNet by time window
   const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
   const filteredJMA = jmaData.filter(eq => eq.time.getTime() >= cutoffTime);
   const filteredGeoNet = geonetData.filter(eq => eq.time.getTime() >= cutoffTime);
   
-  // Combine all data
-  const combined = [...usgsData, ...emscData, ...filteredJMA, ...filteredGeoNet];
+  // Combine all data (PHIVOLCS first to prioritize local data)
+  const combined = [...phivolcsData, ...usgsData, ...emscData, ...filteredJMA, ...filteredGeoNet];
   
   // Deduplicate
   const deduplicated = deduplicateEarthquakes(combined);
@@ -240,6 +278,7 @@ export interface MultiSourceStats {
     emsc: number;
     jma: number;
     geonet: number;
+    phivolcs: number;
   };
   m1Plus: number;
   m2Plus: number;
@@ -258,6 +297,7 @@ export function calculateMultiSourceStats(earthquakes: UnifiedEarthquake[]): Mul
       emsc: earthquakes.filter(eq => eq.source === 'emsc').length,
       jma: earthquakes.filter(eq => eq.source === 'jma').length,
       geonet: earthquakes.filter(eq => eq.source === 'geonet').length,
+      phivolcs: earthquakes.filter(eq => eq.source === 'phivolcs').length,
     },
     m1Plus: earthquakes.filter(eq => eq.magnitude >= 1).length,
     m2Plus: earthquakes.filter(eq => eq.magnitude >= 2).length,
