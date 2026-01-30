@@ -1,586 +1,247 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Database from 'better-sqlite3';
+import path from 'path';
 
-// Unified Earthquake type
-interface UnifiedEarthquake {
+// Database path
+const DB_PATH = path.join(process.cwd(), 'data/earthquakes.db');
+
+interface DBEarthquake {
   id: string;
   source: string;
-  magnitude: number;
-  magnitudeType: string;
-  place: string;
-  time: string;
+  date_time: string;
   timestamp: number;
   latitude: number;
   longitude: number;
   depth: number;
-  url: string;
-  felt?: number | null;
-  tsunami?: boolean;
-  region?: string;
+  magnitude: number;
+  magnitude_type: string;
+  location: string;
+  region: string | null;
+  url: string | null;
+  felt: number | null;
+  tsunami: number;
 }
 
-// In-memory cache
-interface CacheEntry {
-  data: UnifiedEarthquake[];
-  timestamp: number;
-  stats: {
-    total: number;
-    bySource: Record<string, number>;
-    fetchTime: number;
-  };
-}
+// Region bounding boxes for filtering
+const REGION_BOUNDS: Record<string, { minLat: number; maxLat: number; minLon: number; maxLon: number }> = {
+  philippines: { minLat: 4.5, maxLat: 21.5, minLon: 116, maxLon: 127 },
+  luzon: { minLat: 12.0, maxLat: 21.5, minLon: 119, maxLon: 127 },
+  visayas: { minLat: 9.0, maxLat: 12.5, minLon: 122, maxLon: 127 },
+  mindanao: { minLat: 4.5, maxLat: 10.0, minLon: 118, maxLon: 127 },
+  palawan: { minLat: 8.0, maxLat: 12.5, minLon: 116, maxLon: 121 },
+  japan: { minLat: 24, maxLat: 46, minLon: 122, maxLon: 154 },
+  indonesia: { minLat: -11, maxLat: 6, minLon: 95, maxLon: 141 },
+  newzealand: { minLat: -48, maxLat: -34, minLon: 165, maxLon: 179 },
+  usa: { minLat: 24, maxLat: 50, minLon: -125, maxLon: -66 },
+  europe: { minLat: 35, maxLat: 72, minLon: -25, maxLon: 45 },
+};
 
-let cache: CacheEntry | null = null;
-const CACHE_TTL = 60 * 1000; // 1 minute cache
-
-// Fetch from USGS (Global)
-async function fetchUSGS(hours: number, minMag: number): Promise<UnifiedEarthquake[]> {
-  const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=${minMag}&starttime=${startTime}&limit=5000&orderby=time`;
-  
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(url, { 
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
-    return data.features.map((f: any) => ({
-      id: `usgs_${f.id}`,
-      source: 'usgs',
-      magnitude: f.properties.mag,
-      magnitudeType: f.properties.magType || 'ml',
-      place: f.properties.place || 'Unknown',
-      time: new Date(f.properties.time).toISOString(),
-      timestamp: f.properties.time,
-      latitude: f.geometry.coordinates[1],
-      longitude: f.geometry.coordinates[0],
-      depth: f.geometry.coordinates[2],
-      url: f.properties.url || `https://earthquake.usgs.gov/earthquakes/eventpage/${f.id}`,
-      felt: f.properties.felt,
-      tsunami: f.properties.tsunami === 1,
-    }));
-  } catch (error) {
-    console.error('USGS fetch error:', error);
-    return [];
-  }
-}
-
-// Fetch from EMSC (Europe, Mediterranean, Asia)
-async function fetchEMSC(hours: number, minMag: number): Promise<UnifiedEarthquake[]> {
-  const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const url = `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&minmagnitude=${minMag}&starttime=${startTime}&limit=2000&orderby=time`;
-  
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(url, { 
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
-    return (data.features || []).map((f: any) => ({
-      id: `emsc_${f.properties.source_id || f.id}`,
-      source: 'emsc',
-      magnitude: f.properties.mag,
-      magnitudeType: f.properties.magtype || 'ml',
-      place: f.properties.flynn_region || 'Unknown',
-      time: new Date(f.properties.time).toISOString(),
-      timestamp: new Date(f.properties.time).getTime(),
-      latitude: f.geometry.coordinates[1],
-      longitude: f.geometry.coordinates[0],
-      depth: f.geometry.coordinates[2] || 10,
-      url: f.properties.unid ? `https://www.emsc-csem.org/Earthquake/earthquake.php?id=${f.properties.unid}` : '#',
-      region: f.properties.flynn_region,
-    }));
-  } catch (error) {
-    console.error('EMSC fetch error:', error);
-    return [];
-  }
-}
-
-// Fetch from JMA (Japan)
-async function fetchJMA(hours: number): Promise<UnifiedEarthquake[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch('https://www.jma.go.jp/bosai/quake/data/list.json', {
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
-    const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    
-    return data
-      .filter((item: any) => new Date(item.at).getTime() >= cutoff)
-      .map((item: any) => {
-        const coords = parseJMACoords(item.cod);
-        const time = new Date(item.at);
-        return {
-          id: `jma_${item.eid}`,
-          source: 'jma',
-          magnitude: parseFloat(item.mag) || 0,
-          magnitudeType: 'mj',
-          place: item.en_anm || item.anm || 'Japan',
-          time: time.toISOString(),
-          timestamp: time.getTime(),
-          latitude: coords.lat,
-          longitude: coords.lon,
-          depth: coords.depth,
-          url: `https://www.jma.go.jp/bosai/quake/data/${item.json}`,
-          region: 'Japan',
-        };
-      })
-      .filter((eq: UnifiedEarthquake) => eq.magnitude >= 1.0);
-  } catch (error) {
-    console.error('JMA fetch error:', error);
-    return [];
-  }
-}
-
-function parseJMACoords(cod: string): { lat: number; lon: number; depth: number } {
-  try {
-    const match = cod.match(/([+-][\d.]+)([+-][\d.]+)([+-]?\d+)/);
-    if (match) {
-      return {
-        lat: parseFloat(match[1]),
-        lon: parseFloat(match[2]),
-        depth: Math.abs(parseInt(match[3])) / 1000,
-      };
-    }
-  } catch {}
-  return { lat: 35.68, lon: 139.65, depth: 10 };
-}
-
-// Fetch from GeoNet (New Zealand)
-async function fetchGeoNet(hours: number): Promise<UnifiedEarthquake[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch('https://api.geonet.org.nz/quake?MMI=-1', {
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
-    const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    
-    return (data.features || [])
-      .filter((f: any) => new Date(f.properties.time).getTime() >= cutoff)
-      .map((f: any) => {
-        const time = new Date(f.properties.time);
-        return {
-          id: `geonet_${f.properties.publicID}`,
-          source: 'geonet',
-          magnitude: f.properties.magnitude,
-          magnitudeType: f.properties.magnitudeType || 'ml',
-          place: f.properties.locality || 'New Zealand',
-          time: time.toISOString(),
-          timestamp: time.getTime(),
-          latitude: f.geometry.coordinates[1],
-          longitude: f.geometry.coordinates[0],
-          depth: f.geometry.coordinates[2] || 10,
-          url: `https://www.geonet.org.nz/earthquake/${f.properties.publicID}`,
-          region: 'New Zealand',
-        };
-      });
-  } catch (error) {
-    console.error('GeoNet fetch error:', error);
-    return [];
-  }
-}
-
-// Fetch from PHIVOLCS (Philippines) - may fail if site blocks
-async function fetchPHIVOLCS(hours: number): Promise<UnifiedEarthquake[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch('https://earthquake.phivolcs.dost.gov.ph/', {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const html = await response.text();
-    
-    return parsePHIVOLCS(html, hours);
-  } catch (error) {
-    console.error('PHIVOLCS fetch error:', error);
-    return [];
-  }
-}
-
-function parsePHIVOLCS(html: string, hours: number): UnifiedEarthquake[] {
-  const earthquakes: UnifiedEarthquake[] = [];
-  const cutoff = Date.now() - hours * 60 * 60 * 1000;
-  
-  const tableMatches = html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi);
-  
-  for (const tableMatch of tableMatches) {
-    const rowMatches = tableMatch[1].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
-    
-    for (const rowMatch of rowMatches) {
-      if (rowMatch[1].includes('<th') || rowMatch[1].includes('Date - Time')) continue;
-      
-      const cellMatches = rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi);
-      const cells: string[] = [];
-      for (const cell of cellMatches) {
-        cells.push(cell[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-      }
-      
-      if (cells.length !== 6) continue;
-      
-      try {
-        const latitude = parseFloat(cells[1]);
-        const longitude = parseFloat(cells[2]);
-        const depth = parseFloat(cells[3]) || 10;
-        const magnitude = parseFloat(cells[4]);
-        const location = cells[5];
-        
-        if (isNaN(magnitude) || magnitude < 0.5 || magnitude > 10) continue;
-        if (latitude < 4 || latitude > 22 || longitude < 116 || longitude > 128) continue;
-        
-        const time = parsePHIVOLCSTime(cells[0]);
-        if (!time || time.getTime() < cutoff) continue;
-        
-        earthquakes.push({
-          id: `phivolcs_${time.getTime()}_${magnitude}_${latitude.toFixed(2)}`,
-          source: 'phivolcs',
-          magnitude,
-          magnitudeType: 'Ms',
-          place: location,
-          time: time.toISOString(),
-          timestamp: time.getTime(),
-          latitude,
-          longitude,
-          depth,
-          url: 'https://earthquake.phivolcs.dost.gov.ph/',
-          region: 'Philippines',
-        });
-      } catch {}
-    }
-  }
-  
-  return earthquakes;
-}
-
-function parsePHIVOLCSTime(str: string): Date | null {
-  const match = str.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return null;
-  
-  const months: Record<string, number> = {
-    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
-    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11
-  };
-  
-  const day = parseInt(match[1]);
-  const month = months[match[2].toLowerCase()];
-  const year = parseInt(match[3]);
-  let hour = parseInt(match[4]);
-  const minute = parseInt(match[5]);
-  const ampm = (match[6] || '').toUpperCase();
-  
-  if (month === undefined) return null;
-  
-  if (ampm === 'PM' && hour !== 12) hour += 12;
-  else if (ampm === 'AM' && hour === 12) hour = 0;
-  
-  return new Date(Date.UTC(year, month, day, hour - 8, minute, 0));
-}
-
-// Haversine distance in km
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) ** 2 + 
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-            Math.sin(dLon/2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// Deduplicate earthquakes from multiple sources
-function deduplicate(earthquakes: UnifiedEarthquake[]): UnifiedEarthquake[] {
-  // Sort by timestamp descending
-  const sorted = [...earthquakes].sort((a, b) => b.timestamp - a.timestamp);
-  const unique: UnifiedEarthquake[] = [];
-  
-  // Priority: PHIVOLCS > JMA > GeoNet > EMSC > USGS (prefer local/regional sources)
-  const sourcePriority: Record<string, number> = {
-    phivolcs: 5,
-    jma: 4,
-    geonet: 4,
-    emsc: 2,
-    usgs: 1,
-  };
-  
-  for (const eq of sorted) {
-    // Check if this is a duplicate of an existing earthquake
-    const duplicate = unique.find(existing => {
-      const timeDiff = Math.abs(existing.timestamp - eq.timestamp);
-      const magDiff = Math.abs(existing.magnitude - eq.magnitude);
-      const distance = haversine(existing.latitude, existing.longitude, eq.latitude, eq.longitude);
-      
-      // Same earthquake if: within 100km, 3 minutes, similar magnitude
-      return timeDiff < 180000 && distance < 100 && magDiff < 0.5;
-    });
-    
-    if (duplicate) {
-      // Keep the one from higher priority source
-      const existingPriority = sourcePriority[duplicate.source] || 0;
-      const newPriority = sourcePriority[eq.source] || 0;
-      
-      if (newPriority > existingPriority) {
-        // Replace with higher priority source
-        const idx = unique.indexOf(duplicate);
-        unique[idx] = eq;
-      }
-    } else {
-      unique.push(eq);
-    }
-  }
-  
-  return unique;
-}
-
-// Fetch historical data from USGS (supports back to 1900)
-async function fetchUSGSHistorical(startDate: string, endDate: string, minMag: number): Promise<UnifiedEarthquake[]> {
-  const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=${minMag}&starttime=${startDate}&endtime=${endDate}&limit=20000&orderby=time`;
-  
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    
-    const response = await fetch(url, { 
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeout);
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
-    return data.features.map((f: any) => ({
-      id: `usgs_${f.id}`,
-      source: 'usgs',
-      magnitude: f.properties.mag,
-      magnitudeType: f.properties.magType || 'ml',
-      place: f.properties.place || 'Unknown',
-      time: new Date(f.properties.time).toISOString(),
-      timestamp: f.properties.time,
-      latitude: f.geometry.coordinates[1],
-      longitude: f.geometry.coordinates[0],
-      depth: f.geometry.coordinates[2],
-      url: f.properties.url || `https://earthquake.usgs.gov/earthquakes/eventpage/${f.id}`,
-      felt: f.properties.felt,
-      tsunami: f.properties.tsunami === 1,
-    }));
-  } catch (error) {
-    console.error('USGS historical fetch error:', error);
-    return [];
-  }
-}
-
-// Main API handler
+// Main API handler - reads from local SQLite database
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   
   // Parse query parameters
-  const hours = parseInt(searchParams.get('hours') || '24');
-  const days = parseInt(searchParams.get('days') || '0');
+  const hours = parseInt(searchParams.get('hours') || '0');
+  const days = parseInt(searchParams.get('days') || '7');
   const years = parseInt(searchParams.get('years') || '0');
   const startDate = searchParams.get('start'); // YYYY-MM-DD format
   const endDate = searchParams.get('end'); // YYYY-MM-DD format
   const minMag = Math.max(parseFloat(searchParams.get('minmag') || '1'), 0);
+  const maxMag = parseFloat(searchParams.get('maxmag') || '10');
   const limit = Math.min(parseInt(searchParams.get('limit') || '1000'), 20000);
-  const region = searchParams.get('region'); // Optional: philippines, japan, etc.
-  const source = searchParams.get('source'); // Optional: usgs, emsc, jma, geonet
+  const offset = parseInt(searchParams.get('offset') || '0');
+  const region = searchParams.get('region')?.toLowerCase();
+  const source = searchParams.get('source')?.toLowerCase(); // usgs, phivolcs
   const format = searchParams.get('format') || 'json'; // json or geojson
-  const noCache = searchParams.get('nocache') === 'true';
+  const includeStats = searchParams.get('stats') === 'true';
   
-  // Calculate time range
-  let effectiveHours = hours;
-  if (days > 0) effectiveHours = days * 24;
-  if (years > 0) effectiveHours = years * 365 * 24;
-  
-  // For historical queries (> 30 days), use date-based USGS query
-  const isHistorical = effectiveHours > 720 || startDate; // > 30 days or explicit date range
-  
-  // For short time ranges, check cache
-  if (!isHistorical && !noCache && cache && (Date.now() - cache.timestamp) < CACHE_TTL) {
-    let data = cache.data;
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
     
-    // Filter by parameters
-    if (minMag > 1) {
-      data = data.filter(eq => eq.magnitude >= minMag);
+    // Calculate time range
+    let effectiveMs: number;
+    if (hours > 0) {
+      effectiveMs = hours * 60 * 60 * 1000;
+    } else if (years > 0) {
+      effectiveMs = years * 365 * 24 * 60 * 60 * 1000;
+    } else {
+      effectiveMs = days * 24 * 60 * 60 * 1000;
     }
-    if (region) {
-      data = filterByRegion(data, region);
+    
+    // Build query conditions
+    const conditions: string[] = [];
+    const params: any[] = [];
+    
+    // Time filter
+    if (startDate && endDate) {
+      conditions.push('date_time >= ? AND date_time <= ?');
+      params.push(startDate, endDate + 'T23:59:59.999Z');
+    } else {
+      const cutoffTime = Date.now() - effectiveMs;
+      conditions.push('timestamp >= ?');
+      params.push(cutoffTime);
     }
+    
+    // Magnitude filter
+    conditions.push('magnitude >= ? AND magnitude <= ?');
+    params.push(minMag, maxMag);
+    
+    // Source filter
     if (source) {
-      data = data.filter(eq => eq.source === source.toLowerCase());
+      conditions.push('source = ?');
+      params.push(source);
     }
     
-    data = data.slice(0, limit);
-    
-    return formatResponse(data, cache.stats, format);
-  }
-  
-  const startFetch = Date.now();
-  let combined: UnifiedEarthquake[] = [];
-  let stats: any = {};
-  
-  if (isHistorical) {
-    // Historical query - use USGS date-based API
-    const end = endDate || new Date().toISOString().split('T')[0];
-    let start = startDate;
-    if (!start) {
-      const startTime = new Date(Date.now() - effectiveHours * 60 * 60 * 1000);
-      start = startTime.toISOString().split('T')[0];
+    // Region filter (by bounding box or stored region)
+    if (region) {
+      const bounds = REGION_BOUNDS[region];
+      if (bounds) {
+        conditions.push('latitude >= ? AND latitude <= ? AND longitude >= ? AND longitude <= ?');
+        params.push(bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon);
+      } else {
+        // Try matching stored region column
+        conditions.push('LOWER(region) = ?');
+        params.push(region);
+      }
     }
     
-    // For historical, require higher magnitude to avoid massive datasets
-    const effectiveMinMag = Math.max(minMag, effectiveHours > 8760 ? 4.0 : 2.5); // > 1 year = M4+, else M2.5+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     
-    const usgsHistorical = await fetchUSGSHistorical(start, end, effectiveMinMag);
-    combined = usgsHistorical;
+    // Get earthquakes
+    const earthquakes = db.prepare(`
+      SELECT * FROM earthquakes 
+      ${whereClause}
+      ORDER BY timestamp DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset) as DBEarthquake[];
     
-    stats = {
-      total: usgsHistorical.length,
-      bySource: { usgs: usgsHistorical.length },
-      fetchTime: Date.now() - startFetch,
-      historical: true,
-      dateRange: { start, end },
-      minMagUsed: effectiveMinMag,
-    };
-  } else {
-    // Real-time query - fetch from all sources in parallel
-    const fetchHours = Math.min(effectiveHours, 168); // Max 7 days for real-time
+    // Get total count
+    const countResult = db.prepare(`
+      SELECT COUNT(*) as total FROM earthquakes ${whereClause}
+    `).get(...params) as { total: number };
     
-    const [usgsData, emscData, jmaData, geonetData, phivolcsData] = await Promise.all([
-      fetchUSGS(fetchHours, 1.0),
-      fetchEMSC(fetchHours, 1.0),
-      fetchJMA(fetchHours),
-      fetchGeoNet(fetchHours),
-      fetchPHIVOLCS(fetchHours),
-    ]);
+    // Get stats if requested
+    let stats: any = null;
+    if (includeStats) {
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      
+      stats = db.prepare(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN timestamp > ? THEN 1 ELSE 0 END) as last_24h,
+          SUM(CASE WHEN timestamp > ? THEN 1 ELSE 0 END) as last_7d,
+          SUM(CASE WHEN magnitude >= 2 THEN 1 ELSE 0 END) as m2_plus,
+          SUM(CASE WHEN magnitude >= 3 THEN 1 ELSE 0 END) as m3_plus,
+          SUM(CASE WHEN magnitude >= 4 THEN 1 ELSE 0 END) as m4_plus,
+          SUM(CASE WHEN magnitude >= 5 THEN 1 ELSE 0 END) as m5_plus,
+          SUM(CASE WHEN magnitude >= 6 THEN 1 ELSE 0 END) as m6_plus,
+          AVG(magnitude) as avg_magnitude,
+          MAX(magnitude) as max_magnitude,
+          MIN(date_time) as oldest,
+          MAX(date_time) as newest
+        FROM earthquakes ${whereClause}
+      `).get(oneDayAgo, oneWeekAgo, ...params);
+      
+      // Get by source breakdown
+      const sourceStats = db.prepare(`
+        SELECT source, COUNT(*) as count, AVG(magnitude) as avg_mag, MAX(magnitude) as max_mag
+        FROM earthquakes ${whereClause}
+        GROUP BY source
+      `).all(...params);
+      
+      // Get by region breakdown (for Philippines)
+      const regionStats = db.prepare(`
+        SELECT region, COUNT(*) as count, AVG(magnitude) as avg_mag
+        FROM earthquakes ${whereClause}
+        GROUP BY region
+        ORDER BY count DESC
+        LIMIT 10
+      `).all(...params);
+      
+      stats = { ...stats, bySource: sourceStats, byRegion: regionStats };
+    }
     
-    combined = [...usgsData, ...emscData, ...jmaData, ...geonetData, ...phivolcsData];
+    // Get last scrape info
+    let lastScrape = null;
+    try {
+      lastScrape = db.prepare(`
+        SELECT source, completed_at, earthquakes_found, earthquakes_new 
+        FROM scrape_log 
+        ORDER BY id DESC LIMIT 1
+      `).get();
+    } catch (e) {
+      // scrape_log table might not exist
+    }
     
-    // Deduplicate
-    combined = deduplicate(combined);
+    db.close();
     
-    stats = {
-      total: combined.length,
-      bySource: {
-        usgs: usgsData.length,
-        emsc: emscData.length,
-        jma: jmaData.length,
-        geonet: geonetData.length,
-        phivolcs: phivolcsData.length,
-        combined: usgsData.length + emscData.length + jmaData.length + geonetData.length + phivolcsData.length,
-        afterDedup: combined.length,
-      },
-      fetchTime: Date.now() - startFetch,
-    };
+    // Format response
+    const generated = new Date().toISOString();
     
-    // Update cache for real-time data
-    cache = {
-      data: combined,
-      timestamp: Date.now(),
-      stats,
-    };
-  }
-  
-  // Sort by time (newest first)
-  combined.sort((a, b) => b.timestamp - a.timestamp);
-  
-  // Apply filters
-  let result = combined;
-  if (minMag > 1) {
-    result = result.filter(eq => eq.magnitude >= minMag);
-  }
-  if (region) {
-    result = filterByRegion(result, region);
-  }
-  if (source) {
-    result = result.filter(eq => eq.source === source.toLowerCase());
-  }
-  result = result.slice(0, limit);
-  
-  return formatResponse(result, stats, format);
-}
-
-function filterByRegion(data: UnifiedEarthquake[], region: string): UnifiedEarthquake[] {
-  const bounds: Record<string, { minLat: number; maxLat: number; minLon: number; maxLon: number }> = {
-    philippines: { minLat: 4.5, maxLat: 21.5, minLon: 116, maxLon: 127 },
-    japan: { minLat: 24, maxLat: 46, minLon: 122, maxLon: 154 },
-    indonesia: { minLat: -11, maxLat: 6, minLon: 95, maxLon: 141 },
-    newzealand: { minLat: -48, maxLat: -34, minLon: 165, maxLon: 179 },
-    usa: { minLat: 24, maxLat: 50, minLon: -125, maxLon: -66 },
-    europe: { minLat: 35, maxLat: 72, minLon: -25, maxLon: 45 },
-  };
-  
-  const b = bounds[region.toLowerCase()];
-  if (!b) return data;
-  
-  return data.filter(eq => 
-    eq.latitude >= b.minLat && eq.latitude <= b.maxLat &&
-    eq.longitude >= b.minLon && eq.longitude <= b.maxLon
-  );
-}
-
-function formatResponse(data: UnifiedEarthquake[], stats: any, format: string): NextResponse {
-  if (format === 'geojson') {
+    if (format === 'geojson') {
+      return NextResponse.json({
+        type: 'FeatureCollection',
+        metadata: {
+          generated,
+          count: earthquakes.length,
+          totalCount: countResult.total,
+          source: 'lindol-db',
+          lastScrape: lastScrape,
+          ...(stats && { stats })
+        },
+        features: earthquakes.map(eq => ({
+          type: 'Feature',
+          id: eq.id,
+          properties: {
+            mag: eq.magnitude,
+            magType: eq.magnitude_type,
+            place: eq.location,
+            time: eq.timestamp,
+            region: eq.region,
+            depth: eq.depth,
+            source: eq.source,
+            felt: eq.felt,
+            tsunami: eq.tsunami === 1,
+            url: eq.url,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: [eq.longitude, eq.latitude, eq.depth],
+          },
+        })),
+      }, {
+        headers: {
+          'Cache-Control': 'public, max-age=60',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+    
+    // JSON format
     return NextResponse.json({
-      type: 'FeatureCollection',
-      metadata: {
-        generated: new Date().toISOString(),
-        count: data.length,
-        ...stats,
-      },
-      features: data.map(eq => ({
-        type: 'Feature',
+      success: true,
+      generated,
+      count: earthquakes.length,
+      totalCount: countResult.total,
+      source: 'lindol-db',
+      lastScrape,
+      ...(stats && { stats }),
+      earthquakes: earthquakes.map(eq => ({
         id: eq.id,
-        properties: {
-          mag: eq.magnitude,
-          magType: eq.magnitudeType,
-          place: eq.place,
-          time: eq.timestamp,
-          url: eq.url,
-          felt: eq.felt,
-          tsunami: eq.tsunami,
-          source: eq.source,
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [eq.longitude, eq.latitude, eq.depth],
-        },
+        source: eq.source,
+        magnitude: eq.magnitude,
+        magnitudeType: eq.magnitude_type,
+        place: eq.location,
+        time: eq.date_time,
+        timestamp: eq.timestamp,
+        latitude: eq.latitude,
+        longitude: eq.longitude,
+        depth: eq.depth,
+        region: eq.region,
+        url: eq.url,
+        felt: eq.felt,
+        tsunami: eq.tsunami === 1,
       })),
     }, {
       headers: {
@@ -588,18 +249,22 @@ function formatResponse(data: UnifiedEarthquake[], stats: any, format: string): 
         'Access-Control-Allow-Origin': '*',
       },
     });
+    
+  } catch (error: any) {
+    console.error('Earthquake API error:', error);
+    
+    // Database might not exist
+    if (error.code === 'SQLITE_CANTOPEN') {
+      return NextResponse.json({
+        success: false,
+        error: 'Earthquake database not initialized',
+        hint: 'Run the scrapers first: ./scrapers/run-phivolcs.sh',
+      }, { status: 503 });
+    }
+    
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Internal server error',
+    }, { status: 500 });
   }
-  
-  return NextResponse.json({
-    success: true,
-    generated: new Date().toISOString(),
-    count: data.length,
-    stats,
-    earthquakes: data,
-  }, {
-    headers: {
-      'Cache-Control': 'public, max-age=60',
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
 }

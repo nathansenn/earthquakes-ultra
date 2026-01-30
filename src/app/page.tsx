@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchAllPhilippineEarthquakes, fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+import { fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+import { getPhilippinesStats } from "@/lib/db-queries";
 import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEarthquake } from "@/lib/multi-source-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
@@ -34,7 +35,7 @@ export default async function HomePage() {
   // Fetch global M1+ earthquakes from multiple sources (last 24h)
   let globalM1Earthquakes: ProcessedEarthquake[] = [];
   let multiSourceEarthquakes: UnifiedEarthquake[] = [];
-  let philippineEarthquakes: ProcessedEarthquake[] = [];
+  // Philippines data now comes from local database
   let significantGlobal: ProcessedEarthquake[] = [];
   
   try {
@@ -60,9 +61,7 @@ export default async function HomePage() {
       significanceScore: Math.round(eq.magnitude * 100),
     }));
     
-    // Get M1+ earthquakes for Philippines (last 7 days) - featured region
-    const rawPhilippine = await fetchAllPhilippineEarthquakes(7, 1.0);
-    philippineEarthquakes = rawPhilippine.map(processEarthquake);
+    // Philippines data is now fetched from local database (below)
     
     // Get global M4.5+ earthquakes (last 7 days) for significant events
     const rawSignificant = await fetchGlobalEarthquakes(7, 4.5, 100);
@@ -91,8 +90,8 @@ export default async function HomePage() {
       : 0,
   };
   
-  // Calculate Philippine stats (last 7 days)
-  const phStats = calculateStats(philippineEarthquakes);
+  // Get Philippine stats from local database (last 7 days)
+  const phStats = getPhilippinesStats(7);
   
   // Significant earthquake stats
   const globalM5Plus = significantGlobal.filter(eq => eq.magnitude >= 5).length;
