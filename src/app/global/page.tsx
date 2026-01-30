@@ -1,22 +1,24 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchGlobalEarthquakes, processEarthquake } from "@/lib/usgs-api";
+import { fetchGlobalEarthquakesMultiSource, convertToProcessed, calculateMultiSourceStats } from "@/lib/multi-source-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
-import EarthquakeFilters from "@/components/filters/EarthquakeFilters";
 
 export const metadata: Metadata = {
-  title: "Global Earthquakes - All Worldwide Seismic Activity",
+  title: "Global Earthquakes - Multi-Source Real-Time Data",
   description:
-    "View all earthquakes worldwide in real-time. Filter by magnitude, time range, and region. Comprehensive global seismic monitoring from USGS data.",
+    "View all earthquakes worldwide in real-time from 5 sources: USGS, EMSC, JMA, GeoNet, and PHIVOLCS. Comprehensive M1+ global seismic monitoring.",
 };
 
 export const revalidate = 1800;
 
 export default async function GlobalPage() {
-  const rawEarthquakes = await fetchGlobalEarthquakes(7, 4.0, 500);
-  const earthquakes = rawEarthquakes.map(processEarthquake);
+  // Fetch from all sources - 7 days of M2.5+ data
+  const rawEarthquakes = await fetchGlobalEarthquakesMultiSource(168, 2.5);
+  const earthquakes = rawEarthquakes.map(convertToProcessed);
+  const stats = calculateMultiSourceStats(rawEarthquakes);
 
-  // Stats
+  // Stats by magnitude
+  const m4Plus = earthquakes.filter(eq => eq.magnitude >= 4).length;
   const m5Plus = earthquakes.filter(eq => eq.magnitude >= 5).length;
   const m6Plus = earthquakes.filter(eq => eq.magnitude >= 6).length;
   const m7Plus = earthquakes.filter(eq => eq.magnitude >= 7).length;
@@ -31,14 +33,19 @@ export default async function GlobalPage() {
             <h1 className="text-3xl md:text-4xl font-bold">Global Earthquakes</h1>
           </div>
           <p className="text-gray-300 max-w-2xl">
-            Real-time earthquake data from around the world. Showing M4.0+ earthquakes from the last 7 days.
+            Real-time earthquake data from 5 sources: USGS, EMSC, JMA, GeoNet & PHIVOLCS. 
+            Showing M2.5+ earthquakes from the last 7 days.
           </p>
           
           {/* Quick Stats */}
           <div className="mt-6 flex flex-wrap gap-4">
             <div className="bg-white/10 rounded-lg px-4 py-2">
               <span className="text-2xl font-bold">{earthquakes.length}</span>
-              <span className="text-sm text-gray-300 ml-2">Total M4+</span>
+              <span className="text-sm text-gray-300 ml-2">Total M2.5+</span>
+            </div>
+            <div className="bg-white/10 rounded-lg px-4 py-2">
+              <span className="text-2xl font-bold">{m4Plus}</span>
+              <span className="text-sm text-gray-300 ml-2">M4+</span>
             </div>
             <div className="bg-white/10 rounded-lg px-4 py-2">
               <span className="text-2xl font-bold">{m5Plus}</span>
@@ -54,6 +61,15 @@ export default async function GlobalPage() {
                 <span className="text-sm text-gray-300 ml-2">M7+ Major</span>
               </div>
             )}
+          </div>
+          
+          {/* Source Breakdown */}
+          <div className="mt-4 flex flex-wrap gap-2 text-sm">
+            {Object.entries(stats.bySource).map(([source, count]) => (
+              <span key={source} className="bg-white/5 px-2 py-1 rounded text-gray-400">
+                {source.toUpperCase()}: {count}
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -79,6 +95,13 @@ export default async function GlobalPage() {
                 Map View
               </Link>
               <Link
+                href="/earthquakes"
+                className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-200 dark:border-gray-700"
+              >
+                <span>📊</span>
+                M1+ Data
+              </Link>
+              <Link
                 href="/countries"
                 className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 border border-gray-200 dark:border-gray-700"
               >
@@ -98,12 +121,18 @@ export default async function GlobalPage() {
           {/* Info Box */}
           <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
             <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-              About This Data
+              Multi-Source Data Coverage
             </h3>
-            <p className="text-blue-800 dark:text-blue-200 text-sm">
-              Earthquake data is sourced from the United States Geological Survey (USGS) and updated every minute. 
-              This page shows M4.0+ earthquakes from the past 7 days. For smaller earthquakes, visit specific 
-              country or city pages where M2.5+ data is available.
+            <ul className="text-blue-800 dark:text-blue-200 text-sm space-y-1">
+              <li>• <strong>USGS:</strong> Global M2.5+ coverage, US M1+ detailed</li>
+              <li>• <strong>EMSC:</strong> Europe, Mediterranean, Middle East M1.5+</li>
+              <li>• <strong>JMA:</strong> Japan full M1+ coverage</li>
+              <li>• <strong>GeoNet:</strong> New Zealand full M1+ coverage</li>
+              <li>• <strong>PHIVOLCS:</strong> Philippines M1+ (via EMSC)</li>
+            </ul>
+            <p className="text-blue-800 dark:text-blue-200 text-sm mt-3">
+              Data is deduplicated automatically. For M1+ micro-earthquakes in specific regions, 
+              visit the individual country pages.
             </p>
           </div>
         </div>

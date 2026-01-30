@@ -304,3 +304,60 @@ export async function fetchRegionEarthquakes(
       return fetchGlobalEarthquakesMultiSource(hours, minMagnitude);
   }
 }
+
+// Convert UnifiedEarthquake to ProcessedEarthquake format for components
+export function convertToProcessed(eq: UnifiedEarthquake): {
+  id: string;
+  magnitude: number;
+  magnitudeType: string;
+  place: string;
+  time: Date;
+  timeAgo: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+  url: string;
+  felt: number | null;
+  tsunami: boolean;
+  alert: string | null;
+  intensity: string;
+  significanceScore: number;
+  source: string;
+} {
+  const now = Date.now();
+  const timeDiff = now - eq.time.getTime();
+  
+  let timeAgo: string;
+  if (timeDiff < 60000) timeAgo = 'Just now';
+  else if (timeDiff < 3600000) timeAgo = `${Math.floor(timeDiff / 60000)}m ago`;
+  else if (timeDiff < 86400000) timeAgo = `${Math.floor(timeDiff / 3600000)}h ago`;
+  else timeAgo = `${Math.floor(timeDiff / 86400000)}d ago`;
+  
+  let intensity: string;
+  if (eq.magnitude >= 7) intensity = 'extreme';
+  else if (eq.magnitude >= 6) intensity = 'severe';
+  else if (eq.magnitude >= 5) intensity = 'strong';
+  else if (eq.magnitude >= 4) intensity = 'moderate';
+  else if (eq.magnitude >= 3) intensity = 'light';
+  else if (eq.magnitude >= 2) intensity = 'minor';
+  else intensity = 'micro';
+  
+  return {
+    id: eq.id,
+    magnitude: eq.magnitude,
+    magnitudeType: eq.magnitudeType,
+    place: eq.place,
+    time: eq.time,
+    timeAgo,
+    latitude: eq.latitude,
+    longitude: eq.longitude,
+    depth: eq.depth,
+    url: eq.url,
+    felt: eq.felt || null,
+    tsunami: eq.tsunami || false,
+    alert: null,
+    intensity,
+    significanceScore: Math.round(eq.magnitude * 100),
+    source: eq.source,
+  };
+}

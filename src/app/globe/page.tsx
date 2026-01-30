@@ -1,30 +1,36 @@
 import { Metadata } from 'next';
-import { fetchAllPhilippineEarthquakes, processEarthquake } from '@/lib/usgs-api';
+import { fetchGlobalEarthquakesMultiSource, convertToProcessed } from '@/lib/multi-source-api';
 import EarthquakeGlobe from '@/components/globe/EarthquakeGlobe';
 import Link from 'next/link';
 import EarthquakeTicker from '@/components/globe/EarthquakeTicker';
 
 export const metadata: Metadata = {
-  title: '3D Earthquake Globe',
-  description: 'View earthquakes around the world on an interactive 3D globe. Watch real-time seismic activity with pulsing indicators for recent earthquakes. M1+ data available.',
+  title: '3D Earthquake Globe - Global Real-Time View',
+  description: 'View earthquakes around the world on an interactive 3D globe. Watch real-time seismic activity from 5 data sources with pulsing indicators for recent earthquakes.',
   openGraph: {
     title: '3D Earthquake Globe | QuakeGlobe',
-    description: 'Interactive 3D visualization of global earthquake activity',
+    description: 'Interactive 3D visualization of global earthquake activity from multiple sources',
   },
 };
 
 export const revalidate = 1800; // 30 minutes
 
 export default async function GlobePage() {
-  // Get M1+ earthquakes from the last 24 hours
-  const rawEarthquakes = await fetchAllPhilippineEarthquakes(1, 1.0);
-  const earthquakes = rawEarthquakes.map(processEarthquake);
+  // Get M1+ earthquakes from the last 24 hours - multi-source
+  const rawEarthquakes = await fetchGlobalEarthquakesMultiSource(24, 1.0);
+  const earthquakes = rawEarthquakes.map(convertToProcessed);
 
   const lastHourCount = earthquakes.filter(
-    eq => new Date(eq.time) > new Date(Date.now() - 60 * 60 * 1000)
+    eq => eq.time > new Date(Date.now() - 60 * 60 * 1000)
   ).length;
 
   const significantCount = earthquakes.filter(eq => eq.magnitude >= 5.0).length;
+  
+  // Count by source
+  const sourceCount = rawEarthquakes.reduce((acc, eq) => {
+    acc[eq.source] = (acc[eq.source] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -43,7 +49,7 @@ export default async function GlobePage() {
                 Live Earthquake Globe
               </h1>
               <p className="mt-2 text-gray-400">
-                Real-time visualization of seismic activity in the Philippines
+                Real-time global seismic activity from USGS, EMSC, JMA & GeoNet
               </p>
             </div>
             <div className="flex gap-4">
@@ -58,6 +64,10 @@ export default async function GlobePage() {
               <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-yellow-400">{significantCount}</p>
                 <p className="text-xs text-gray-400">M5.0+</p>
+              </div>
+              <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
+                <p className="text-2xl font-bold text-blue-400">{Object.keys(sourceCount).length}</p>
+                <p className="text-xs text-gray-400">Sources</p>
               </div>
             </div>
           </div>
