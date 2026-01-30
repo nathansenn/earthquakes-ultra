@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 60; // Revalidate every minute
+export const revalidate = 1800; // 30 minutes
 
 export default async function EarthquakesPage() {
   // Fetch the last 30 days of M1+ earthquakes (server-side)

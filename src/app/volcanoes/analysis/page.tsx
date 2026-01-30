@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 600; // 10 minutes
+export const revalidate = 1800; // 30 minutes
 
 // Risk category colors
 const RISK_COLORS: Record<string, { bg: string; badge: string }> = {

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 // Revalidate every 5 minutes
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export default async function HomePage() {
   // Fetch global M1+ earthquakes from multiple sources (last 24h)

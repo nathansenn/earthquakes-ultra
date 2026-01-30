@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 60; // Revalidate every minute
+export const revalidate = 1800; // 30 minutes
 
 export default async function GlobePage() {
   // Get M1+ earthquakes from the last 24 hours

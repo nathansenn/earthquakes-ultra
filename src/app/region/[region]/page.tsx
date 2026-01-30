@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export default async function RegionPage({ params }: Props) {
   const { region: regionSlug } = await params;

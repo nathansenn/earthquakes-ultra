@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 300; // 5 minutes
+export const revalidate = 1800; // 30 minutes
 
 export default async function VolcanoesPage() {
   // Fetch recent earthquakes for assessment

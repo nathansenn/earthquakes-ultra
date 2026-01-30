@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "View all earthquakes worldwide in real-time. Filter by magnitude, time range, and region. Comprehensive global seismic monitoring from USGS data.",
 };
 
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export default async function GlobalPage() {
   const rawEarthquakes = await fetchGlobalEarthquakes(7, 4.0, 500);
