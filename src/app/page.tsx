@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { fetchAllPhilippineEarthquakes, fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor } from "@/lib/usgs-api";
+import { fetchAllPhilippineEarthquakes, fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEarthquake } from "@/lib/multi-source-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority } from "@/data/philippine-volcanoes";
@@ -30,15 +31,34 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function HomePage() {
-  // Fetch global M1+ earthquakes (last 24h for performance)
+  // Fetch global M1+ earthquakes from multiple sources (last 24h)
   let globalM1Earthquakes: ProcessedEarthquake[] = [];
+  let multiSourceEarthquakes: UnifiedEarthquake[] = [];
   let philippineEarthquakes: ProcessedEarthquake[] = [];
   let significantGlobal: ProcessedEarthquake[] = [];
   
   try {
-    // Get global M1+ earthquakes (last 24 hours)
-    const rawGlobalM1 = await fetchGlobalM1Earthquakes(1, 5000);
-    globalM1Earthquakes = rawGlobalM1.map(processEarthquake);
+    // Get global M1+ earthquakes from ALL sources (USGS, EMSC, JMA, GeoNet)
+    multiSourceEarthquakes = await fetchGlobalEarthquakesMultiSource(24, 1.0);
+    
+    // Convert to ProcessedEarthquake format for compatibility
+    globalM1Earthquakes = multiSourceEarthquakes.map(eq => ({
+      id: eq.id,
+      magnitude: eq.magnitude,
+      magnitudeType: eq.magnitudeType,
+      place: eq.place,
+      time: eq.time,
+      timeAgo: getTimeAgo(eq.time),
+      latitude: eq.latitude,
+      longitude: eq.longitude,
+      depth: eq.depth,
+      url: eq.url,
+      felt: eq.felt || null,
+      tsunami: eq.tsunami || false,
+      alert: null,
+      intensity: getMagnitudeIntensity(eq.magnitude),
+      significanceScore: Math.round(eq.magnitude * 100),
+    }));
     
     // Get M1+ earthquakes for Philippines (last 7 days) - featured region
     const rawPhilippine = await fetchAllPhilippineEarthquakes(7, 1.0);
@@ -51,8 +71,25 @@ export default async function HomePage() {
     console.error("Failed to fetch earthquakes:", error);
   }
 
-  // Calculate global stats (last 24h)
-  const globalStats = calculateStats(globalM1Earthquakes);
+  // Calculate global stats from multi-source data (last 24h)
+  const multiStats = calculateMultiSourceStats(multiSourceEarthquakes);
+  const globalStats = {
+    total: multiStats.total,
+    last24h: multiStats.total,
+    m1Plus: multiStats.m1Plus,
+    m2Plus: multiStats.m2Plus,
+    m3Plus: multiStats.m3Plus,
+    m4Plus: multiStats.m4Plus,
+    m5Plus: multiStats.m5Plus,
+    m6Plus: multiStats.m6Plus,
+    avgMagnitude: globalM1Earthquakes.length > 0 
+      ? globalM1Earthquakes.reduce((sum, eq) => sum + eq.magnitude, 0) / globalM1Earthquakes.length 
+      : 0,
+    maxMagnitude: multiStats.largest?.magnitude || 0,
+    avgDepth: globalM1Earthquakes.length > 0
+      ? globalM1Earthquakes.reduce((sum, eq) => sum + eq.depth, 0) / globalM1Earthquakes.length
+      : 0,
+  };
   
   // Calculate Philippine stats (last 7 days)
   const phStats = calculateStats(philippineEarthquakes);

@@ -534,7 +534,7 @@ export function processEarthquake(eq: USGSEarthquake): ProcessedEarthquake {
 }
 
 // Get time ago string
-function getTimeAgo(date: Date): string {
+export function getTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   
   if (seconds < 60) return 'just now';
