@@ -1,4 +1,4 @@
-// Educational Content for Lindol.ph
+// Educational Content for QuakeGlobe
 // Comprehensive earthquake education and safety information
 
 // ============================================================================

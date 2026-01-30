@@ -16,7 +16,7 @@ export default function MapPage() {
 
   // Set page title
   useEffect(() => {
-    document.title = "Live Earthquake Map | Lindol.ph";
+    document.title = "Live Earthquake Map | QuakeGlobe";
   }, []);
 
   useEffect(() => {

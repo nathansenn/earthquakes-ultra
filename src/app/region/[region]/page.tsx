@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${region.name} Earthquakes | Region ${region.code}`,
     description: `Track earthquakes in ${region.name} (Region ${region.code}), Philippines. View recent seismic activity and earthquake history for all cities in the region.`,
     openGraph: {
-      title: `${region.name} Earthquakes | Lindol.ph`,
+      title: `${region.name} Earthquakes | QuakeGlobe`,
       description: `Real-time earthquake tracking for ${region.name}, Philippines.`,
     },
   };

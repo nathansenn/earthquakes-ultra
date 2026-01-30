@@ -25,7 +25,7 @@ export default function NearMePage() {
 
   // Set page title
   useEffect(() => {
-    document.title = "Earthquakes Near Me | Lindol.ph";
+    document.title = "Earthquakes Near Me | QuakeGlobe";
   }, []);
 
   const fetchNearbyEarthquakes = useCallback(

@@ -17,33 +17,33 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://lindol.ph"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://quakeglobe.com"),
   title: {
-    default: "Lindol.ph — Real-Time Global Earthquake Monitoring",
-    template: "%s | Lindol.ph",
+    default: "QuakeGlobe — Real-Time Global Earthquake Monitoring",
+    template: "%s | QuakeGlobe",
   },
   description:
-    "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity in the Philippines and globally. Get instant alerts, view interactive maps, and stay prepared with earthquake safety information.",
+    "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity across the globe, from micro-tremors to major events. Every tremor. Everywhere.",
   keywords: [
-    "lindol",
     "earthquake tracker",
-    "philippines earthquake",
+    "global earthquake",
     "earthquake monitor",
     "earthquake map",
     "earthquake alert",
     "seismic activity",
-    "PHIVOLCS",
     "USGS earthquake",
     "earthquake near me",
     "earthquake safety",
     "Pacific Ring of Fire",
     "M1 earthquakes",
     "real-time earthquake",
-    "philippine fault line",
+    "world earthquake",
+    "quake tracker",
+    "live earthquake",
   ],
-  authors: [{ name: "Lindol.ph Team" }],
-  creator: "Lindol.ph",
-  publisher: "Lindol.ph",
+  authors: [{ name: "QuakeGlobe Team" }],
+  creator: "QuakeGlobe",
+  publisher: "QuakeGlobe",
   robots: {
     index: true,
     follow: true,
@@ -57,30 +57,30 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "en_PH",
-    url: "https://lindol.ph",
-    siteName: "Lindol.ph",
-    title: "Lindol.ph — Real-Time Global Earthquake Monitoring",
+    locale: "en_US",
+    url: "https://quakeglobe.com",
+    siteName: "QuakeGlobe",
+    title: "QuakeGlobe — Real-Time Global Earthquake Monitoring",
     description:
-      "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity in the Philippines and globally. Every tremor. Everywhere.",
+      "Track earthquakes worldwide in real-time. Monitor M1+ seismic activity across the globe. Every tremor. Everywhere.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Lindol.ph - Real-Time Earthquake Monitoring",
+        alt: "QuakeGlobe - Real-Time Global Earthquake Monitoring",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lindol.ph — Real-Time Earthquake Monitoring",
+    title: "QuakeGlobe — Real-Time Global Earthquake Monitoring",
     description:
-      "Track earthquakes worldwide in real-time. M1+ data for the Philippines and global coverage.",
+      "Track earthquakes worldwide in real-time. M1+ global coverage and regional monitoring.",
     images: ["/og-image.png"],
   },
   alternates: {
-    canonical: "https://lindol.ph",
+    canonical: "https://quakeglobe.com",
   },
   verification: {
     google: "your-google-verification-code",

@@ -4,7 +4,7 @@ interface DynamicFooterProps {
   region?: string;
   city?: string;
   country?: string;
-  pageType?: 'home' | 'global' | 'philippines' | 'city' | 'region' | 'volcano';
+  pageType?: 'home' | 'global' | 'philippines' | 'city' | 'region' | 'volcano' | 'country';
 }
 
 // Philippine regional emergency contacts
@@ -97,34 +97,22 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
     <footer className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* About Lindol.ph */}
+          {/* About QuakeGlobe */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-orange-600 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-lg">🌍</span>
               </div>
               <span className="text-lg font-bold">
-                Lindol<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-600">.ph</span>
+                Quake<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">Globe</span>
               </span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Real-time earthquake monitoring for the Philippines and worldwide. 
+              Real-time global earthquake monitoring. 
               Every tremor. Everywhere. Stay informed, stay prepared, stay safe.
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-3">
-              🇵🇭 &quot;Lindol&quot; is Filipino for &quot;earthquake&quot;
+              🌐 Monitoring the entire planet, 24/7
             </p>
           </div>
 
@@ -137,23 +125,23 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
               <li>
                 <Link
                   href="/earthquakes"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   All Earthquakes (M1+)
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/philippines"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  href="/countries"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
-                  Philippines
+                  Browse by Country
                 </Link>
               </li>
               <li>
                 <Link
                   href="/map"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   Live Map
                 </Link>
@@ -161,23 +149,23 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
               <li>
                 <Link
                   href="/globe"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   3D Globe
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/volcanoes"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  href="/volcanoes/global"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
-                  Volcano Monitor
+                  Global Volcanoes
                 </Link>
               </li>
               <li>
                 <Link
                   href="/alerts"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   Set Up Alerts
                 </Link>
@@ -185,9 +173,9 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
               <li>
                 <Link
                   href="/preparedness"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
-                  Preparedness Guide
+                  Safety Guide
                 </Link>
               </li>
             </ul>
@@ -205,7 +193,7 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
                     <li key={idx}>
                       <a
                         href={`tel:${contact.phone.replace(/[^0-9+]/g, '')}`}
-                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                       >
                         {contact.name}: <span className="font-medium">{contact.phone}</span>
                       </a>
@@ -228,7 +216,7 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
                     <li key={idx}>
                       <a
                         href={`tel:${contact.phone.replace(/[^0-9+]/g, '')}`}
-                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                       >
                         {contact.office}: <span className="font-medium">{contact.phone}</span>
                       </a>
@@ -267,39 +255,47 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
             ) : (
               <>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-                  Popular Locations
+                  Top Seismic Regions
                 </h3>
                 <ul className="space-y-2">
                   <li>
                     <Link
-                      href="/philippines/manila"
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      href="/philippines"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                     >
-                      Manila Earthquakes
+                      🇵🇭 Philippines
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/philippines/davao-city"
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      href="/country/japan"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                     >
-                      Davao City Earthquakes
+                      🇯🇵 Japan
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/philippines/cebu-city"
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      href="/country/indonesia"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                     >
-                      Cebu City Earthquakes
+                      🇮🇩 Indonesia
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/philippines/quezon-city"
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      href="/country/chile"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                     >
-                      Quezon City Earthquakes
+                      🇨🇱 Chile
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/country/united-states"
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                    >
+                      🇺🇸 United States
                     </Link>
                   </li>
                 </ul>
@@ -315,21 +311,10 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://www.phivolcs.dost.gov.ph/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
-                >
-                  PHIVOLCS
-                  <ExternalLinkIcon />
-                </a>
-              </li>
-              <li>
-                <a
                   href="https://earthquake.usgs.gov/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1"
                 >
                   USGS Earthquake Hazards
                   <ExternalLinkIcon />
@@ -337,23 +322,34 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
               </li>
               <li>
                 <a
-                  href="https://ndrrmc.gov.ph/"
+                  href="https://www.emsc-csem.org/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1"
                 >
-                  NDRRMC
+                  EMSC (Europe-Mediterranean)
                   <ExternalLinkIcon />
                 </a>
               </li>
               <li>
                 <a
-                  href="https://redcross.org.ph/"
+                  href="https://www.phivolcs.dost.gov.ph/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1"
                 >
-                  Philippine Red Cross
+                  PHIVOLCS (Philippines)
+                  <ExternalLinkIcon />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.jma.go.jp/jma/en/Activities/earthquake.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1"
+                >
+                  JMA (Japan)
                   <ExternalLinkIcon />
                 </a>
               </li>
@@ -362,7 +358,7 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
                   href="https://www.iris.edu/hq/inclass/earthquake_browser"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1"
                 >
                   Global Seismographic Network
                   <ExternalLinkIcon />
@@ -377,28 +373,28 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-center md:text-left">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                © {currentYear} Lindol.ph — Real-Time Global Earthquake Monitoring
+                © {currentYear} QuakeGlobe — Real-Time Global Earthquake Monitoring
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Data provided by USGS and PHIVOLCS. Not for official emergency use.
+                Data provided by USGS. Not for official emergency use.
               </p>
             </div>
             <div className="flex items-center gap-4">
               <Link
                 href="/privacy"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 Privacy Policy
               </Link>
               <Link
                 href="/terms"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 Terms of Service
               </Link>
               <Link
                 href="/about"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 About
               </Link>

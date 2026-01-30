@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "The most comprehensive earthquake preparedness guide for the Philippines. Learn DROP-COVER-HOLD, complete emergency kit checklist, what to do before/during/after earthquakes, building safety, tsunami awareness, and aftershock preparation.",
   openGraph: {
-    title: "Complete Earthquake Preparedness Guide | Lindol.ph",
+    title: "Complete Earthquake Preparedness Guide | QuakeGlobe",
     description:
       "Essential earthquake safety guide for Filipinos. Emergency contacts, kit checklist, and life-saving tips.",
   },

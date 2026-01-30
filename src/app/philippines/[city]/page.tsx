@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${city.name} Earthquake Risk & Activity | ${city.province}, Philippines`,
     description: `Comprehensive earthquake information for ${city.name}, ${city.province}. Current seismic risk: ${seismicRisk.level.toUpperCase()}. View recent earthquakes, nearby fault lines, emergency contacts, and preparedness tips. Population: ${city.population.toLocaleString()}.`,
     openGraph: {
-      title: `${city.name} Earthquake Monitoring | Lindol.ph`,
+      title: `${city.name} Earthquake Monitoring | QuakeGlobe`,
       description: `Real-time earthquake tracking for ${city.name}. Seismic risk level: ${seismicRisk.level}. ${city.population.toLocaleString()} residents. Stay informed about seismic activity.`,
     },
     keywords: [

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: '3D Earthquake Globe',
   description: 'View earthquakes around the world on an interactive 3D globe. Watch real-time seismic activity with pulsing indicators for recent earthquakes. M1+ data available.',
   openGraph: {
-    title: '3D Earthquake Globe | Lindol.ph',
+    title: '3D Earthquake Globe | QuakeGlobe',
     description: 'Interactive 3D visualization of global earthquake activity',
   },
 };

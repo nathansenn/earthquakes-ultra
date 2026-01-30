@@ -129,6 +129,54 @@ export async function fetchPhilippineEarthquakes(days: number = 30, minMagnitude
 // GLOBAL EARTHQUAKE FUNCTIONS
 // ============================================
 
+// In-memory cache for global M1+ data (expensive query)
+interface GlobalM1Cache {
+  data: USGSEarthquake[];
+  timestamp: number;
+  days: number;
+}
+
+let globalM1Cache: GlobalM1Cache | null = null;
+const GLOBAL_M1_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Fetch ALL global M1+ earthquakes with caching
+export async function fetchGlobalM1Earthquakes(
+  days: number = 1,
+  limit: number = 10000
+): Promise<USGSEarthquake[]> {
+  const now = Date.now();
+  
+  // Check cache validity
+  if (
+    globalM1Cache && 
+    globalM1Cache.days === days &&
+    (now - globalM1Cache.timestamp) < GLOBAL_M1_CACHE_TTL
+  ) {
+    return globalM1Cache.data;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const data = await fetchEarthquakes({
+    starttime: startDate.toISOString().split('T')[0],
+    endtime: endDate.toISOString().split('T')[0],
+    minmagnitude: 1.0,
+    orderby: 'time',
+    limit,
+  });
+
+  // Update cache
+  globalM1Cache = {
+    data,
+    timestamp: now,
+    days,
+  };
+
+  return data;
+}
+
 // Fetch global earthquakes (no geographic bounds)
 export async function fetchGlobalEarthquakes(
   days: number = 7,

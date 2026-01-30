@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description:
     "Strategic preparedness monitoring for Philippine volcanoes. Risk assessments based on peer-reviewed seismic-volcanic correlation models. M1+ seismicity analysis.",
   openGraph: {
-    title: "Philippine Volcano Monitoring | Lindol.ph",
+    title: "Philippine Volcano Monitoring | QuakeGlobe",
     description: "Strategic preparedness tool for Philippine volcanic hazards with M1+ seismic data.",
   },
 };

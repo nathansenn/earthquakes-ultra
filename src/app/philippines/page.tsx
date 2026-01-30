@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "Find earthquake information for any city or municipality in the Philippines. Browse by region or search for your location.",
   openGraph: {
-    title: "Earthquakes by City & Region | Lindol.ph",
+    title: "Earthquakes by City & Region | QuakeGlobe",
     description: "Track earthquakes for any city in the Philippines. Complete coverage of all 17 regions.",
   },
 };

@@ -13,10 +13,10 @@ import {
 } from "@/data/global-volcanoes";
 
 export const metadata: Metadata = {
-  title: "Global Volcano Database | Lindol.ph",
+  title: "Global Volcano Database | QuakeGlobe",
   description: "Explore over 250 active and potentially active volcanoes worldwide. Interactive database with eruption history, population exposure, and volcanic hazard information.",
   openGraph: {
-    title: "Global Volcano Database | Lindol.ph",
+    title: "Global Volcano Database | QuakeGlobe",
     description: "Over 250 volcanoes worldwide - from the Ring of Fire to Iceland. Track volcanic activity globally.",
   },
 };

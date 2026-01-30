@@ -7,7 +7,7 @@ import { philippineCities } from "@/data/philippine-cities";
 export default function AlertsPage() {
   // Set page title
   useEffect(() => {
-    document.title = "Earthquake Alerts | Lindol.ph";
+    document.title = "Earthquake Alerts | QuakeGlobe";
   }, []);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");

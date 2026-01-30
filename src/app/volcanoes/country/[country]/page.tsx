@@ -20,16 +20,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const countryName = slugToCountry(countrySlug);
   
   if (!countryName) {
-    return { title: "Country Not Found | Lindol.ph" };
+    return { title: "Country Not Found | QuakeGlobe" };
   }
 
   const volcanoes = getVolcanoesByCountry(countryName);
   
   return {
-    title: `${countryName} Volcanoes (${volcanoes.length}) | Lindol.ph`,
+    title: `${countryName} Volcanoes (${volcanoes.length}) | QuakeGlobe`,
     description: `Explore ${volcanoes.length} active and potentially active volcanoes in ${countryName}. View eruption history, elevation, and population exposure data.`,
     openGraph: {
-      title: `Volcanoes of ${countryName} | Lindol.ph`,
+      title: `Volcanoes of ${countryName} | QuakeGlobe`,
       description: `${volcanoes.length} volcanoes in ${countryName} - eruption history, locations, and volcanic hazard information.`,
     },
   };
@@ -43,7 +43,7 @@ export async function generateStaticParams() {
 }
 
 function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     active: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     potentially_active: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
     holocene: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -66,7 +66,7 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
         <div>
           <h3 className="font-bold text-lg text-gray-900 dark:text-white">{volcano.name}</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {volcano.subregion} • {volcano.type}
+            {volcano.region} • {volcano.type}
           </p>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[volcano.status]}`}>
@@ -84,12 +84,12 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
           <p className="font-semibold text-gray-900 dark:text-white">{volcano.lastEruption || 'Unknown'}</p>
         </div>
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Pop. 10km</p>
-          <p className="font-semibold text-gray-900 dark:text-white">{formatPopulation(volcano.population10km)}</p>
-        </div>
-        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
           <p className="text-xs text-gray-500 dark:text-gray-400">Pop. 30km</p>
           <p className="font-semibold text-gray-900 dark:text-white">{formatPopulation(volcano.population30km)}</p>
+        </div>
+        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Pop. 100km</p>
+          <p className="font-semibold text-gray-900 dark:text-white">{formatPopulation(volcano.population100km)}</p>
         </div>
       </div>
 
@@ -139,11 +139,11 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
   const totalPop30km = volcanoes.reduce((sum, v) => sum + (v.population30km || 0), 0);
   const highestVolcano = volcanoes.reduce((a, b) => a.elevation > b.elevation ? a : b);
 
-  // Group by subregion
-  const subregions = [...new Set(volcanoes.map(v => v.subregion))];
-  const bySubregion = subregions.map(sr => ({
+  // Group by region
+  const regions = [...new Set(volcanoes.map(v => v.region))];
+  const bySubregion = regions.map(sr => ({
     name: sr,
-    volcanoes: volcanoes.filter(v => v.subregion === sr),
+    volcanoes: volcanoes.filter(v => v.region === sr),
   }));
 
   // Nearby countries
@@ -207,7 +207,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
               ← Global Database
             </Link>
             <span className="text-gray-300 dark:text-gray-600">|</span>
-            {subregions.map(sr => (
+            {regions.map(sr => (
               <a 
                 key={sr}
                 href={`#${sr.toLowerCase().replace(/\s+/g, '-')}`} 
@@ -224,7 +224,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {bySubregion.length > 1 ? (
-            // Multiple subregions - group them
+            // Multiple regions - group them
             bySubregion.map(({ name, volcanoes: subVolcanoes }) => (
               <div key={name} id={name.toLowerCase().replace(/\s+/g, '-')} className="mb-10">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -242,7 +242,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
               </div>
             ))
           ) : (
-            // Single subregion - just list all
+            // Single region - just list all
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {volcanoes.map((volcano) => (
                 <VolcanoCard key={volcano.id} volcano={volcano} />

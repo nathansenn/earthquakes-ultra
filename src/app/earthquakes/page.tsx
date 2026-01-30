@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "View all earthquakes in the Philippines including M1+ micro-earthquakes. Filter by magnitude, time range, and sort by various criteria. Updated in real-time from USGS data.",
   openGraph: {
-    title: "All Earthquakes in the Philippines | Lindol.ph",
+    title: "All Earthquakes in the Philippines | QuakeGlobe",
     description: "Comprehensive earthquake data for the Philippines including M1+ events with filtering and real-time updates.",
   },
 };
