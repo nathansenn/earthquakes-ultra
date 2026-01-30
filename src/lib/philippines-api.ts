@@ -106,16 +106,21 @@ async function fetchUSGSPhilippines(
 }
 
 // PHIVOLCS Scraper (when site is available)
-// Site structure: https://earthquake.phivolcs.dost.gov.ph/EQLatest.html
-// Monthly archives: https://earthquake.phivolcs.dost.gov.ph/EQLatest-Monthly/YYYY/YYYY_Month.html
+// Site structure: https://earthquake.phivolcs.dost.gov.ph/ (main page with January 2026 data)
+// Note: Site blocks non-browser requests, so we need browser-like headers
 async function fetchPHIVOLCS(days: number = 7): Promise<UnifiedEarthquake[]> {
   const earthquakes: UnifiedEarthquake[] = [];
   
-  // Try latest earthquakes page
+  // Try main earthquakes page with browser-like headers
   try {
-    const response = await fetch('https://earthquake.phivolcs.dost.gov.ph/EQLatest.html', {
+    const response = await fetch('https://earthquake.phivolcs.dost.gov.ph/', {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; QuakeGlobe/1.0; +https://quakeglobe.com)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
       },
       next: { revalidate: 300 } // 5 min cache
     });
@@ -127,7 +132,13 @@ async function fetchPHIVOLCS(days: number = 7): Promise<UnifiedEarthquake[]> {
     
     const html = await response.text();
     const parsed = parsePHIVOLCSHtml(html);
-    earthquakes.push(...parsed);
+    
+    // Filter to requested time range
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const filtered = parsed.filter(eq => eq.time.getTime() >= cutoff);
+    
+    earthquakes.push(...filtered);
+    console.log(`PHIVOLCS: parsed ${parsed.length} earthquakes, ${filtered.length} in last ${days} days`);
   } catch (error) {
     console.error('PHIVOLCS fetch error:', error);
     return [];
@@ -137,52 +148,77 @@ async function fetchPHIVOLCS(days: number = 7): Promise<UnifiedEarthquake[]> {
 }
 
 // Parse PHIVOLCS HTML table format
-// Expected format: Date-Time | Latitude | Longitude | Depth | Magnitude | Location
+// Format: Date-Time | Latitude | Longitude | Depth | Magnitude | Location
+// Example row: "30 January 2026 - 04:47 PM | 18.61 | 121.65 | 012 | 1.8 | 026 km N 32° E of Ballesteros (Cagayan)"
 function parsePHIVOLCSHtml(html: string): UnifiedEarthquake[] {
   const earthquakes: UnifiedEarthquake[] = [];
   
-  // Extract table rows using regex (PHIVOLCS uses simple HTML tables)
-  const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
-  if (!tableMatch) return [];
+  // Find all tables (PHIVOLCS has multiple tables, earthquake data is in tables with 6 columns)
+  const tableMatches = html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi);
   
-  const rowMatches = tableMatch[1].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
-  
-  for (const rowMatch of rowMatches) {
-    const cells = rowMatch[1].match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
-    if (!cells || cells.length < 6) continue;
+  for (const tableMatch of tableMatches) {
+    const tableContent = tableMatch[1];
     
-    // Extract cell contents
-    const extractContent = (cell: string) => cell.replace(/<[^>]+>/g, '').trim();
+    // Extract all rows
+    const rowMatches = tableContent.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
     
-    try {
-      const dateTimeStr = extractContent(cells[0]);
-      const latitude = parseFloat(extractContent(cells[1]));
-      const longitude = parseFloat(extractContent(cells[2]));
-      const depth = parseFloat(extractContent(cells[3]));
-      const magnitude = parseFloat(extractContent(cells[4]));
-      const location = extractContent(cells[5]);
+    for (const rowMatch of rowMatches) {
+      const rowContent = rowMatch[1];
       
-      if (isNaN(magnitude) || isNaN(latitude) || isNaN(longitude)) continue;
+      // Skip header rows
+      if (rowContent.includes('<th') || rowContent.includes('Date - Time')) continue;
       
-      // Parse Philippine datetime format (DD Month YYYY - HH:MM:SS)
-      const time = parsePHIVOLCSDateTime(dateTimeStr);
-      if (!time) continue;
+      // Extract cells (both td and any nested content)
+      const cellMatches = rowContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi);
+      const cells: string[] = [];
       
-      earthquakes.push({
-        id: `phivolcs_${time.getTime()}_${magnitude}`,
-        source: 'phivolcs' as any,
-        magnitude,
-        magnitudeType: 'Ms', // PHIVOLCS typically uses surface wave magnitude
-        place: location,
-        time,
-        latitude,
-        longitude,
-        depth,
-        url: 'https://earthquake.phivolcs.dost.gov.ph/',
-        region: categorizePhilippineRegion(latitude, longitude),
-      });
-    } catch (e) {
-      continue;
+      for (const cellMatch of cellMatches) {
+        // Strip HTML tags and get text content
+        const content = cellMatch[1]
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        cells.push(content);
+      }
+      
+      // Need exactly 6 cells for valid earthquake row
+      if (cells.length !== 6) continue;
+      
+      try {
+        const dateTimeStr = cells[0];
+        const latitude = parseFloat(cells[1]);
+        const longitude = parseFloat(cells[2]);
+        const depth = parseFloat(cells[3]);
+        const magnitude = parseFloat(cells[4]);
+        const location = cells[5];
+        
+        // Validate parsed values
+        if (isNaN(magnitude) || isNaN(latitude) || isNaN(longitude)) continue;
+        if (magnitude < 0.5 || magnitude > 10) continue; // Sanity check
+        if (latitude < 4 || latitude > 22) continue; // Philippines bounds
+        if (longitude < 116 || longitude > 128) continue;
+        
+        // Parse Philippine datetime format (DD Month YYYY - HH:MM AM/PM)
+        const time = parsePHIVOLCSDateTime(dateTimeStr);
+        if (!time) continue;
+        
+        earthquakes.push({
+          id: `phivolcs_${time.getTime()}_${magnitude}_${latitude.toFixed(2)}`,
+          source: 'phivolcs' as any,
+          magnitude,
+          magnitudeType: 'Ms', // PHIVOLCS typically uses surface wave magnitude
+          place: location,
+          time,
+          latitude,
+          longitude,
+          depth: isNaN(depth) ? 10 : depth,
+          url: 'https://earthquake.phivolcs.dost.gov.ph/',
+          region: categorizePhilippineRegion(latitude, longitude),
+        });
+      } catch (e) {
+        // Skip invalid rows
+        continue;
+      }
     }
   }
   
@@ -191,8 +227,8 @@ function parsePHIVOLCSHtml(html: string): UnifiedEarthquake[] {
 
 // Parse PHIVOLCS datetime format
 function parsePHIVOLCSDateTime(str: string): Date | null {
-  // Format: "30 January 2026 - 14:30:00" or similar
-  const match = str.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s*-?\s*(\d{2}):(\d{2}):?(\d{2})?/);
+  // Format: "30 January 2026 - 04:47 PM" or "30 January 2026 - 11:30 AM"
+  const match = str.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
   if (!match) return null;
   
   const months: Record<string, number> = {
@@ -203,14 +239,22 @@ function parsePHIVOLCSDateTime(str: string): Date | null {
   const day = parseInt(match[1]);
   const month = months[match[2].toLowerCase()];
   const year = parseInt(match[3]);
-  const hour = parseInt(match[4]);
+  let hour = parseInt(match[4]);
   const minute = parseInt(match[5]);
-  const second = parseInt(match[6] || '0');
+  const ampm = (match[6] || '').toUpperCase();
   
   if (month === undefined) return null;
   
+  // Convert 12-hour to 24-hour format
+  if (ampm === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (ampm === 'AM' && hour === 12) {
+    hour = 0;
+  }
+  
   // PHIVOLCS uses Philippine Time (UTC+8)
-  const date = new Date(Date.UTC(year, month, day, hour - 8, minute, second));
+  // Create date in Philippine time then convert to UTC
+  const date = new Date(Date.UTC(year, month, day, hour - 8, minute, 0));
   return date;
 }
 
