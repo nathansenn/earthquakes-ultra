@@ -368,20 +368,71 @@ function deduplicate(earthquakes: UnifiedEarthquake[]): UnifiedEarthquake[] {
   return unique;
 }
 
+// Fetch historical data from USGS (supports back to 1900)
+async function fetchUSGSHistorical(startDate: string, endDate: string, minMag: number): Promise<UnifiedEarthquake[]> {
+  const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=${minMag}&starttime=${startDate}&endtime=${endDate}&limit=20000&orderby=time`;
+  
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeout);
+    
+    if (!response.ok) return [];
+    const data = await response.json();
+    
+    return data.features.map((f: any) => ({
+      id: `usgs_${f.id}`,
+      source: 'usgs',
+      magnitude: f.properties.mag,
+      magnitudeType: f.properties.magType || 'ml',
+      place: f.properties.place || 'Unknown',
+      time: new Date(f.properties.time).toISOString(),
+      timestamp: f.properties.time,
+      latitude: f.geometry.coordinates[1],
+      longitude: f.geometry.coordinates[0],
+      depth: f.geometry.coordinates[2],
+      url: f.properties.url || `https://earthquake.usgs.gov/earthquakes/eventpage/${f.id}`,
+      felt: f.properties.felt,
+      tsunami: f.properties.tsunami === 1,
+    }));
+  } catch (error) {
+    console.error('USGS historical fetch error:', error);
+    return [];
+  }
+}
+
 // Main API handler
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   
   // Parse query parameters
-  const hours = Math.min(parseInt(searchParams.get('hours') || '24'), 168); // Max 7 days
+  const hours = parseInt(searchParams.get('hours') || '24');
+  const days = parseInt(searchParams.get('days') || '0');
+  const years = parseInt(searchParams.get('years') || '0');
+  const startDate = searchParams.get('start'); // YYYY-MM-DD format
+  const endDate = searchParams.get('end'); // YYYY-MM-DD format
   const minMag = Math.max(parseFloat(searchParams.get('minmag') || '1'), 0);
-  const limit = Math.min(parseInt(searchParams.get('limit') || '1000'), 5000);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '1000'), 20000);
   const region = searchParams.get('region'); // Optional: philippines, japan, etc.
+  const source = searchParams.get('source'); // Optional: usgs, emsc, jma, geonet
   const format = searchParams.get('format') || 'json'; // json or geojson
   const noCache = searchParams.get('nocache') === 'true';
   
-  // Check cache
-  if (!noCache && cache && (Date.now() - cache.timestamp) < CACHE_TTL) {
+  // Calculate time range
+  let effectiveHours = hours;
+  if (days > 0) effectiveHours = days * 24;
+  if (years > 0) effectiveHours = years * 365 * 24;
+  
+  // For historical queries (> 30 days), use date-based USGS query
+  const isHistorical = effectiveHours > 720 || startDate; // > 30 days or explicit date range
+  
+  // For short time ranges, check cache
+  if (!isHistorical && !noCache && cache && (Date.now() - cache.timestamp) < CACHE_TTL) {
     let data = cache.data;
     
     // Filter by parameters
@@ -391,63 +442,94 @@ export async function GET(request: NextRequest) {
     if (region) {
       data = filterByRegion(data, region);
     }
+    if (source) {
+      data = data.filter(eq => eq.source === source.toLowerCase());
+    }
     
     data = data.slice(0, limit);
     
     return formatResponse(data, cache.stats, format);
   }
   
-  // Fetch from all sources in parallel
   const startFetch = Date.now();
+  let combined: UnifiedEarthquake[] = [];
+  let stats: any = {};
   
-  const [usgsData, emscData, jmaData, geonetData, phivolcsData] = await Promise.all([
-    fetchUSGS(hours, 1.0),
-    fetchEMSC(hours, 1.0),
-    fetchJMA(hours),
-    fetchGeoNet(hours),
-    fetchPHIVOLCS(hours),
-  ]);
-  
-  const fetchTime = Date.now() - startFetch;
-  
-  // Combine all data
-  const combined = [...usgsData, ...emscData, ...jmaData, ...geonetData, ...phivolcsData];
-  
-  // Deduplicate
-  const deduplicated = deduplicate(combined);
+  if (isHistorical) {
+    // Historical query - use USGS date-based API
+    const end = endDate || new Date().toISOString().split('T')[0];
+    let start = startDate;
+    if (!start) {
+      const startTime = new Date(Date.now() - effectiveHours * 60 * 60 * 1000);
+      start = startTime.toISOString().split('T')[0];
+    }
+    
+    // For historical, require higher magnitude to avoid massive datasets
+    const effectiveMinMag = Math.max(minMag, effectiveHours > 8760 ? 4.0 : 2.5); // > 1 year = M4+, else M2.5+
+    
+    const usgsHistorical = await fetchUSGSHistorical(start, end, effectiveMinMag);
+    combined = usgsHistorical;
+    
+    stats = {
+      total: usgsHistorical.length,
+      bySource: { usgs: usgsHistorical.length },
+      fetchTime: Date.now() - startFetch,
+      historical: true,
+      dateRange: { start, end },
+      minMagUsed: effectiveMinMag,
+    };
+  } else {
+    // Real-time query - fetch from all sources in parallel
+    const fetchHours = Math.min(effectiveHours, 168); // Max 7 days for real-time
+    
+    const [usgsData, emscData, jmaData, geonetData, phivolcsData] = await Promise.all([
+      fetchUSGS(fetchHours, 1.0),
+      fetchEMSC(fetchHours, 1.0),
+      fetchJMA(fetchHours),
+      fetchGeoNet(fetchHours),
+      fetchPHIVOLCS(fetchHours),
+    ]);
+    
+    combined = [...usgsData, ...emscData, ...jmaData, ...geonetData, ...phivolcsData];
+    
+    // Deduplicate
+    combined = deduplicate(combined);
+    
+    stats = {
+      total: combined.length,
+      bySource: {
+        usgs: usgsData.length,
+        emsc: emscData.length,
+        jma: jmaData.length,
+        geonet: geonetData.length,
+        phivolcs: phivolcsData.length,
+        combined: usgsData.length + emscData.length + jmaData.length + geonetData.length + phivolcsData.length,
+        afterDedup: combined.length,
+      },
+      fetchTime: Date.now() - startFetch,
+    };
+    
+    // Update cache for real-time data
+    cache = {
+      data: combined,
+      timestamp: Date.now(),
+      stats,
+    };
+  }
   
   // Sort by time (newest first)
-  deduplicated.sort((a, b) => b.timestamp - a.timestamp);
-  
-  // Calculate stats
-  const stats = {
-    total: deduplicated.length,
-    bySource: {
-      usgs: usgsData.length,
-      emsc: emscData.length,
-      jma: jmaData.length,
-      geonet: geonetData.length,
-      phivolcs: phivolcsData.length,
-      combined: combined.length,
-      afterDedup: deduplicated.length,
-    },
-    fetchTime,
-  };
-  
-  // Update cache
-  cache = {
-    data: deduplicated,
-    timestamp: Date.now(),
-    stats,
-  };
+  combined.sort((a, b) => b.timestamp - a.timestamp);
   
   // Apply filters
-  let result = deduplicated;
+  let result = combined;
   if (minMag > 1) {
     result = result.filter(eq => eq.magnitude >= minMag);
   }
   if (region) {
     result = filterByRegion(result, region);
+  }
+  if (source) {
+    result = result.filter(eq => eq.source === source.toLowerCase());
   }
   result = result.slice(0, limit);
   

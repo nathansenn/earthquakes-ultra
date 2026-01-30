@@ -296,7 +296,7 @@ export async function fetchGlobalStats(days: number = 7): Promise<{
 }
 
 // Time range options for filtering
-export type TimeRange = '24h' | '7d' | '30d' | '90d' | '1yr';
+export type TimeRange = '24h' | '7d' | '30d' | '90d' | '1yr' | '5yr' | '10yr' | 'all';
 
 export function getTimeRangeDays(range: TimeRange): number {
   switch (range) {
@@ -305,6 +305,9 @@ export function getTimeRangeDays(range: TimeRange): number {
     case '30d': return 30;
     case '90d': return 90;
     case '1yr': return 365;
+    case '5yr': return 365 * 5;
+    case '10yr': return 365 * 10;
+    case 'all': return 365 * 125; // Since 1900
     default: return 7;
   }
 }
@@ -315,6 +318,9 @@ export const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '30d', label: 'Last 30 Days' },
   { value: '90d', label: 'Last 90 Days' },
   { value: '1yr', label: 'Last Year' },
+  { value: '5yr', label: 'Last 5 Years' },
+  { value: '10yr', label: 'Last 10 Years' },
+  { value: 'all', label: 'All Time (1900+)' },
 ];
 
 // Magnitude filter options
