@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCountryBySlug, getAllCountrySlugs, seismicRegions } from "@/data/countries";
 import { getCitiesByCountry } from "@/data/major-cities";
-import { fetchEarthquakesByBounds, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { fetchEarthquakesByBounds, processEarthquake, ProcessedEarthquake, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+import { fetchRegionEarthquakes, getRegionInfo } from "@/lib/regional-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 
 interface Props {
@@ -38,7 +39,7 @@ export default async function CountryPage({ params }: Props) {
     notFound();
   }
 
-  // Fetch earthquakes for this country
+  // Fetch earthquakes for this country using multi-source regional API
   const bounds = {
     minLatitude: country.bounds.minLat,
     maxLatitude: country.bounds.maxLat,
@@ -48,10 +49,41 @@ export default async function CountryPage({ params }: Props) {
 
   let earthquakes: ProcessedEarthquake[] = [];
   try {
-    const rawEarthquakes = await fetchEarthquakesByBounds(bounds, 30, 1.0, 500);
-    earthquakes = rawEarthquakes.map(processEarthquake);
+    // Try regional API first (multi-source: EMSC, USGS, JMA, GeoNet)
+    const regionInfo = getRegionInfo(slug);
+    if (regionInfo) {
+      const multiSourceData = await fetchRegionEarthquakes(slug, 30, 1.0);
+      earthquakes = multiSourceData.map(eq => ({
+        id: eq.id,
+        magnitude: eq.magnitude,
+        magnitudeType: eq.magnitudeType,
+        place: eq.place,
+        time: eq.time,
+        timeAgo: getTimeAgo(eq.time),
+        latitude: eq.latitude,
+        longitude: eq.longitude,
+        depth: eq.depth,
+        url: eq.url,
+        felt: eq.felt || null,
+        tsunami: eq.tsunami || false,
+        alert: null,
+        intensity: getMagnitudeIntensity(eq.magnitude),
+        significanceScore: Math.round(eq.magnitude * 100),
+      }));
+    } else {
+      // Fallback to USGS bounds query
+      const rawEarthquakes = await fetchEarthquakesByBounds(bounds, 30, 1.0, 500);
+      earthquakes = rawEarthquakes.map(processEarthquake);
+    }
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
+    // Fallback to USGS
+    try {
+      const rawEarthquakes = await fetchEarthquakesByBounds(bounds, 30, 1.0, 500);
+      earthquakes = rawEarthquakes.map(processEarthquake);
+    } catch (e) {
+      console.error("Fallback also failed:", e);
+    }
   }
 
   // Get cities in this country
@@ -143,6 +175,20 @@ export default async function CountryPage({ params }: Props) {
                 {zone}
               </span>
             ))}
+          </div>
+
+          {/* Historical Data Link */}
+          <div className="mt-6">
+            <Link
+              href={`/country/${slug}/history`}
+              className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <span>📜</span>
+              <span>View Historical Earthquakes & Volcanoes</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
         </div>
       </section>
