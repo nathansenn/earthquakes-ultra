@@ -87,24 +87,30 @@ async function fetchJMA(limit: number = 500): Promise<UnifiedEarthquake[]> {
     if (!response.ok) return [];
     
     const data = await response.json();
-    return data.slice(0, limit).map((item: any) => {
-      // Parse JMA coordinate format: "+35.8+140.3-40000/"
-      const coords = parseJMACoords(item.cod);
-      
-      return {
-        id: `jma_${item.eid}`,
-        source: 'jma' as const,
-        magnitude: parseFloat(item.mag) || 0,
-        magnitudeType: 'mj', // JMA magnitude
-        place: item.en_anm || item.anm || 'Japan',
-        time: new Date(item.at),
-        latitude: coords.lat,
-        longitude: coords.lon,
-        depth: coords.depth,
-        url: `https://www.jma.go.jp/bosai/quake/data/${item.json}`,
-        region: 'Japan',
-      };
-    }).filter((eq: UnifiedEarthquake) => eq.magnitude >= 1.0);
+    return data.slice(0, limit)
+      .filter((item: any) => {
+        // Skip entries with missing or invalid magnitude
+        const mag = parseFloat(item.mag);
+        return !isNaN(mag) && mag >= 1.0;
+      })
+      .map((item: any) => {
+        // Parse JMA coordinate format: "+35.8+140.3-40000/"
+        const coords = parseJMACoords(item.cod);
+        
+        return {
+          id: `jma_${item.eid}`,
+          source: 'jma' as const,
+          magnitude: parseFloat(item.mag),
+          magnitudeType: 'mj', // JMA magnitude
+          place: item.en_anm || item.anm || 'Japan',
+          time: new Date(item.at),
+          latitude: coords.lat,
+          longitude: coords.lon,
+          depth: coords.depth,
+          url: `https://www.jma.go.jp/bosai/quake/data/${item.json}`,
+          region: 'Japan',
+        };
+      });
   } catch (error) {
     console.error('JMA fetch error:', error);
     return [];
@@ -261,10 +267,15 @@ export async function fetchGlobalEarthquakesMultiSource(
   // Combine all data (PHIVOLCS first to prioritize local data)
   const combined = [...phivolcsData, ...usgsData, ...emscData, ...filteredJMA, ...filteredGeoNet];
   
-  // Deduplicate
-  const deduplicated = deduplicateEarthquakes(combined);
+  // Filter out invalid magnitudes (0, null, NaN) and apply minimum magnitude filter
+  const validData = combined.filter(eq => 
+    eq.magnitude && !isNaN(eq.magnitude) && eq.magnitude >= minMagnitude
+  );
   
-  console.log(`Combined: ${combined.length}, After dedup: ${deduplicated.length}`);
+  // Deduplicate
+  const deduplicated = deduplicateEarthquakes(validData);
+  
+  console.log(`Combined: ${combined.length}, Valid: ${validData.length}, After dedup: ${deduplicated.length}`);
   
   // Sort by time (newest first)
   return deduplicated.sort((a, b) => b.time.getTime() - a.time.getTime());
