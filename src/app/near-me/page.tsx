@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ProcessedEarthquake, processEarthquake } from "@/lib/usgs-api";
+import { ProcessedEarthquake, processEarthquake, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
 import { EarthquakeCard } from "@/components/earthquake/EarthquakeCard";
 import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
 
@@ -34,39 +34,86 @@ export default function NearMePage() {
       setError(null);
 
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
+        // Check if location is within Philippines bounds
+        const isInPhilippines = lat >= 4.5 && lat <= 21.5 && lng >= 116 && lng <= 127;
+        
+        let processedQuakes: EarthquakeWithDistance[] = [];
+        
+        if (isInPhilippines) {
+          // Use local API for Philippines (includes PHIVOLCS data)
+          const params = new URLSearchParams({
+            days: "30",
+            minmag: minMag.toString(),
+            region: "philippines",
+            format: "geojson",
+            limit: "5000",
+          });
 
-        const params = new URLSearchParams({
-          format: "geojson",
-          starttime: startDate.toISOString().split("T")[0],
-          endtime: endDate.toISOString().split("T")[0],
-          latitude: lat.toString(),
-          longitude: lng.toString(),
-          maxradiuskm: radiusKm.toString(),
-          minmagnitude: minMag.toString(),
-          orderby: "time",
-          limit: "500",
-        });
+          const response = await fetch(`/api/earthquakes?${params}`, {
+            cache: 'no-store'
+          });
+          const data = await response.json();
+          
+          // Process and calculate distance
+          processedQuakes = data.features.map((feature: any) => {
+            const eqLat = feature.geometry.coordinates[1];
+            const eqLng = feature.geometry.coordinates[0];
+            const distanceKm = getDistanceFromLatLonInKm(lat, lng, eqLat, eqLng);
+            
+            return {
+              id: feature.id,
+              magnitude: feature.properties.mag,
+              magnitudeType: feature.properties.magType || 'ml',
+              place: feature.properties.place,
+              time: new Date(feature.properties.time),
+              timeAgo: getTimeAgo(new Date(feature.properties.time)),
+              latitude: eqLat,
+              longitude: eqLng,
+              depth: feature.geometry.coordinates[2] || feature.properties.depth || 0,
+              url: feature.properties.url || '#',
+              felt: feature.properties.felt || null,
+              tsunami: feature.properties.tsunami || false,
+              alert: null,
+              intensity: getMagnitudeIntensity(feature.properties.mag),
+              significanceScore: Math.round(feature.properties.mag * 100),
+              distanceKm,
+            };
+          }).filter((eq: EarthquakeWithDistance) => eq.distanceKm <= radiusKm);
+        } else {
+          // Use USGS for global locations
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - 30);
 
-        const response = await fetch(
-          `https://earthquake.usgs.gov/fdsnws/event/1/query?${params}`
-        );
-        const data = await response.json();
+          const params = new URLSearchParams({
+            format: "geojson",
+            starttime: startDate.toISOString().split("T")[0],
+            latitude: lat.toString(),
+            longitude: lng.toString(),
+            maxradiuskm: radiusKm.toString(),
+            minmagnitude: minMag.toString(),
+            orderby: "time",
+            limit: "500",
+          });
 
-        const processedQuakes: EarthquakeWithDistance[] = data.features.map(
-          (eq: Parameters<typeof processEarthquake>[0]) => {
-            const processed = processEarthquake(eq);
-            const distanceKm = getDistanceFromLatLonInKm(
-              lat,
-              lng,
-              processed.latitude,
-              processed.longitude
-            );
-            return { ...processed, distanceKm };
-          }
-        );
+          const response = await fetch(
+            `https://earthquake.usgs.gov/fdsnws/event/1/query?${params}`,
+            { cache: 'no-store' }
+          );
+          const data = await response.json();
+
+          processedQuakes = data.features.map(
+            (eq: Parameters<typeof processEarthquake>[0]) => {
+              const processed = processEarthquake(eq);
+              const distanceKm = getDistanceFromLatLonInKm(
+                lat,
+                lng,
+                processed.latitude,
+                processed.longitude
+              );
+              return { ...processed, distanceKm };
+            }
+          );
+        }
 
         // Sort by distance
         processedQuakes.sort((a, b) => a.distanceKm - b.distanceKm);

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ProcessedEarthquake, processEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
-import { PHILIPPINES_BOUNDS } from "@/lib/usgs-api";
+import { ProcessedEarthquake, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
 import { EarthquakeMap } from "@/components/map";
 
 export default function MapPage() {
@@ -23,28 +22,39 @@ export default function MapPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-
+        // Fetch from local database API (includes PHIVOLCS + USGS data)
         const params = new URLSearchParams({
+          days: days.toString(),
+          minmag: minMag.toString(),
+          region: "philippines",
           format: "geojson",
-          starttime: startDate.toISOString().split("T")[0],
-          endtime: endDate.toISOString().split("T")[0],
-          minlatitude: PHILIPPINES_BOUNDS.minLatitude.toString(),
-          maxlatitude: PHILIPPINES_BOUNDS.maxLatitude.toString(),
-          minlongitude: PHILIPPINES_BOUNDS.minLongitude.toString(),
-          maxlongitude: PHILIPPINES_BOUNDS.maxLongitude.toString(),
-          minmagnitude: minMag.toString(),
-          orderby: "time",
-          limit: "500",
+          limit: "2000",
         });
 
-        const response = await fetch(
-          `https://earthquake.usgs.gov/fdsnws/event/1/query?${params}`
-        );
+        const response = await fetch(`/api/earthquakes?${params}`, {
+          cache: 'no-store'
+        });
         const data = await response.json();
-        const processed = data.features.map(processEarthquake);
+        
+        // Process GeoJSON features into our format
+        const processed: ProcessedEarthquake[] = data.features.map((feature: any) => ({
+          id: feature.id,
+          magnitude: feature.properties.mag,
+          magnitudeType: feature.properties.magType || 'ml',
+          place: feature.properties.place,
+          time: new Date(feature.properties.time),
+          timeAgo: getTimeAgo(new Date(feature.properties.time)),
+          latitude: feature.geometry.coordinates[1],
+          longitude: feature.geometry.coordinates[0],
+          depth: feature.geometry.coordinates[2] || feature.properties.depth || 0,
+          url: feature.properties.url || `https://earthquake.usgs.gov/earthquakes/eventpage/${feature.id}`,
+          felt: feature.properties.felt || null,
+          tsunami: feature.properties.tsunami || false,
+          alert: null,
+          intensity: getMagnitudeIntensity(feature.properties.mag),
+          significanceScore: Math.round(feature.properties.mag * 100),
+        }));
+        
         setEarthquakes(processed);
       } catch (error) {
         console.error("Failed to fetch earthquakes:", error);

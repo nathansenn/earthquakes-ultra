@@ -108,13 +108,12 @@ export async function fetchEarthquakes(query: EarthquakeQuery = {}): Promise<USG
 
 // Fetch earthquakes for Philippines (last 30 days)
 export async function fetchPhilippineEarthquakes(days: number = 30, minMagnitude: number = 2.5): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minlatitude: PHILIPPINES_BOUNDS.minLatitude,
     maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
     minlongitude: PHILIPPINES_BOUNDS.minLongitude,
@@ -155,13 +154,12 @@ export async function fetchGlobalM1Earthquakes(
     return globalM1Cache.data;
   }
 
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   const data = await fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minmagnitude: 1.0,
     orderby: 'time',
     limit,
@@ -183,13 +181,12 @@ export async function fetchGlobalEarthquakes(
   minMagnitude: number = 4.5,
   limit: number = 500
 ): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minmagnitude: minMagnitude,
     orderby: 'time',
     limit,
@@ -203,13 +200,12 @@ export async function fetchEarthquakesByBounds(
   minMagnitude: number = 2.5,
   limit: number = 1000
 ): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minlatitude: bounds.minLatitude,
     maxlatitude: bounds.maxLatitude,
     minlongitude: bounds.minLongitude,
@@ -229,13 +225,12 @@ export async function fetchEarthquakesNearCity(
   minMagnitude: number = 2.0,
   limit: number = 500
 ): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     latitude: lat,
     longitude: lon,
     maxradiuskm: radiusKm,
@@ -252,13 +247,12 @@ export async function fetchSignificantGlobalEarthquakes(days: number = 30): Prom
 
 // Fetch recent large earthquakes (M6+) for alerts
 export async function fetchLargeEarthquakes(hours: number = 24): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setTime(startDate.getTime() - hours * 60 * 60 * 1000);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString(),
-    endtime: endDate.toISOString(),
     minmagnitude: 6.0,
     orderby: 'time',
     limit: 100,
@@ -340,16 +334,15 @@ export async function fetchAllPhilippineEarthquakes(
   days: number = 7, 
   minMagnitude: number = 1.0
 ): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
   // For M1+ we can get a LOT of data, limit appropriately
   const limit = minMagnitude <= 2 ? 5000 : 2000;
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minlatitude: PHILIPPINES_BOUNDS.minLatitude,
     maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
     minlongitude: PHILIPPINES_BOUNDS.minLongitude,
@@ -376,13 +369,12 @@ export async function fetchEarthquakesConfigurable(options: {
     orderBy = 'time'
   } = options;
 
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minlatitude: PHILIPPINES_BOUNDS.minLatitude,
     maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
     minlongitude: PHILIPPINES_BOUNDS.minLongitude,
@@ -444,13 +436,12 @@ export async function fetchEarthquakesNearLocation(
   days: number = 30,
   minMagnitude: number = 2.0
 ): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     latitude,
     longitude,
     maxradiuskm: radiusKm,
@@ -462,13 +453,12 @@ export async function fetchEarthquakesNearLocation(
 
 // Fetch significant earthquakes (M5+)
 export async function fetchSignificantEarthquakes(days: number = 365): Promise<USGSEarthquake[]> {
-  const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Don't set endtime - USGS defaults to current time for latest data
   return fetchEarthquakes({
     starttime: startDate.toISOString().split('T')[0],
-    endtime: endDate.toISOString().split('T')[0],
     minlatitude: PHILIPPINES_BOUNDS.minLatitude,
     maxlatitude: PHILIPPINES_BOUNDS.maxLatitude,
     minlongitude: PHILIPPINES_BOUNDS.minLongitude,
