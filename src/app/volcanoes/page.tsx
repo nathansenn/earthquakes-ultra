@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS } from "@/data/philippine-volcanoes";
-import { fetchAllPhilippineEarthquakes, processEarthquake } from "@/lib/usgs-api";
+import { getPhilippinesEarthquakes } from "@/lib/db-queries";
 import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction";
 
 export const metadata: Metadata = {
@@ -21,16 +21,16 @@ export default async function VolcanoesPage() {
   let assessments: Awaited<ReturnType<typeof assessAllVolcanoes>> = [];
   
   try {
-    // Fetch M2+ earthquakes for volcanic assessment (M1 too numerous, M4 too few)
-    const rawEarthquakes = await fetchAllPhilippineEarthquakes(30, 2.0);
+    // Fetch M2+ earthquakes for volcanic assessment from local database (includes PHIVOLCS)
+    const rawEarthquakes = getPhilippinesEarthquakes(30, 2.0, 5000);
     const earthquakes: Earthquake[] = rawEarthquakes.map(eq => ({
       id: eq.id,
-      magnitude: eq.properties.mag,
-      depth_km: eq.geometry.coordinates[2],
-      latitude: eq.geometry.coordinates[1],
-      longitude: eq.geometry.coordinates[0],
-      timestamp: new Date(eq.properties.time),
-      location: eq.properties.place || 'Unknown',
+      magnitude: eq.magnitude,
+      depth_km: eq.depth,
+      latitude: eq.latitude,
+      longitude: eq.longitude,
+      timestamp: eq.time,
+      location: eq.place || 'Unknown',
     }));
     
     assessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, earthquakes);

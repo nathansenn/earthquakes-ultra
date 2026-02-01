@@ -2,7 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { PHILIPPINE_VOLCANOES } from "@/data/philippine-volcanoes";
 import { GLOBAL_VOLCANOES, GlobalVolcano } from "@/data/global-volcanoes";
-import { fetchAllPhilippineEarthquakes, fetchGlobalEarthquakes } from "@/lib/usgs-api";
+import { getPhilippinesEarthquakes } from "@/lib/db-queries";
+import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction";
 
 export const metadata: Metadata = {
@@ -39,21 +40,21 @@ export default async function VolcanoAnalysisPage() {
   let recentGlobalEarthquakes = 0;
   
   try {
-    // Fetch Philippine earthquakes for volcanic assessment
-    const rawPhilippineEqs = await fetchAllPhilippineEarthquakes(30, 2.0);
+    // Fetch Philippine earthquakes for volcanic assessment from local database
+    const rawPhilippineEqs = getPhilippinesEarthquakes(30, 2.0, 5000);
     const philippineEqs: Earthquake[] = rawPhilippineEqs.map(eq => ({
       id: eq.id,
-      magnitude: eq.properties.mag,
-      depth_km: eq.geometry.coordinates[2],
-      latitude: eq.geometry.coordinates[1],
-      longitude: eq.geometry.coordinates[0],
-      timestamp: new Date(eq.properties.time),
-      location: eq.properties.place || 'Unknown',
+      magnitude: eq.magnitude,
+      depth_km: eq.depth,
+      latitude: eq.latitude,
+      longitude: eq.longitude,
+      timestamp: eq.time,
+      location: eq.place || 'Unknown',
     }));
     
     philippineAssessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, philippineEqs);
     
-    // Fetch global significant earthquakes
+    // Fetch global significant earthquakes (still from USGS for global data)
     const globalEqs = await fetchGlobalEarthquakes(7, 5.0);
     recentGlobalEarthquakes = globalEqs.length;
   } catch (error) {

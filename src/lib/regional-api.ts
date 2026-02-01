@@ -3,6 +3,7 @@
 // Uses the best available data source for each region
 
 import { UnifiedEarthquake } from './multi-source-api';
+import { getPhilippinesEarthquakes } from './db-queries';
 
 // Country/Region configurations with bounds and preferred data sources
 export const REGIONS: Record<string, {
@@ -315,6 +316,30 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Fetch PHIVOLCS data from local database
+function fetchPHIVOLCSRegion(days: number, minMag: number): UnifiedEarthquake[] {
+  try {
+    const earthquakes = getPhilippinesEarthquakes(days, minMag, 5000);
+    return earthquakes.map(eq => ({
+      id: eq.id,
+      source: 'phivolcs' as any,
+      magnitude: eq.magnitude,
+      magnitudeType: eq.magnitudeType || 'Ms',
+      place: eq.place,
+      time: eq.time,
+      latitude: eq.latitude,
+      longitude: eq.longitude,
+      depth: eq.depth,
+      url: eq.url || 'https://earthquake.phivolcs.dost.gov.ph/',
+      felt: eq.felt,
+      tsunami: eq.tsunami,
+    }));
+  } catch (error) {
+    console.error('PHIVOLCS fetch error:', error);
+    return [];
+  }
+}
+
 // Main function: Fetch earthquakes for a specific region
 export async function fetchRegionEarthquakes(
   regionKey: string,
@@ -330,7 +355,23 @@ export async function fetchRegionEarthquakes(
   const startTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const effectiveMinMag = Math.max(minMagnitude, region.minMagAvailable);
   
-  // Fetch from all configured sources in parallel
+  // Special case: Philippines uses local PHIVOLCS database for comprehensive M1+ coverage
+  if (regionKey.toLowerCase() === 'philippines') {
+    const phivolcsData = fetchPHIVOLCSRegion(days, effectiveMinMag);
+    
+    // Also fetch from USGS/EMSC for completeness
+    const [usgsData, emscData] = await Promise.all([
+      fetchUSGSRegion(region.bounds, startTime.split('T')[0], effectiveMinMag, 1000),
+      fetchEMSCRegion(region.bounds, startTime, effectiveMinMag, 1000),
+    ]);
+    
+    const combined = [...phivolcsData, ...usgsData, ...emscData];
+    console.log(`Region Philippines: ${phivolcsData.length} PHIVOLCS + ${usgsData.length} USGS + ${emscData.length} EMSC = ${combined.length} total`);
+    
+    return deduplicateRegional(combined).sort((a, b) => b.time.getTime() - a.time.getTime());
+  }
+  
+  // Fetch from all configured sources in parallel for other regions
   const fetchPromises: Promise<UnifiedEarthquake[]>[] = [];
   
   for (const source of region.sources) {

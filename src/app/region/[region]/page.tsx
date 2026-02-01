@@ -2,7 +2,27 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { philippineRegions, getCitiesByRegion, City } from "@/data/philippine-cities";
-import { fetchAllPhilippineEarthquakes, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { getPhilippinesEarthquakes, ProcessedEarthquake as DBEarthquake } from "@/lib/db-queries";
+import { getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+
+// Extend the DB earthquake to match the ProcessedEarthquake interface used in this page
+interface ProcessedEarthquake {
+  id: string;
+  magnitude: number;
+  magnitudeType: string;
+  place: string;
+  time: Date;
+  timeAgo: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+  url: string;
+  felt: number | null;
+  tsunami: boolean;
+  alert: string | null;
+  intensity: string;
+  significanceScore: number;
+}
 
 interface Props {
   params: Promise<{ region: string }>;
@@ -46,11 +66,27 @@ export default async function RegionPage({ params }: Props) {
 
   const cities = getCitiesByRegion(region.code);
 
-  // Fetch recent M1+ earthquakes for Philippines
+  // Fetch recent M1+ earthquakes for Philippines from local database
   let earthquakes: ProcessedEarthquake[] = [];
   try {
-    const raw = await fetchAllPhilippineEarthquakes(30, 1.0);
-    earthquakes = raw.map(processEarthquake);
+    const raw = getPhilippinesEarthquakes(30, 1.0, 5000);
+    earthquakes = raw.map(eq => ({
+      id: eq.id,
+      magnitude: eq.magnitude,
+      magnitudeType: eq.magnitudeType,
+      place: eq.place,
+      time: eq.time,
+      timeAgo: getTimeAgo(eq.time),
+      latitude: eq.latitude,
+      longitude: eq.longitude,
+      depth: eq.depth,
+      url: eq.url || '#',
+      felt: eq.felt,
+      tsunami: eq.tsunami,
+      alert: null,
+      intensity: getMagnitudeIntensity(eq.magnitude),
+      significanceScore: Math.round(eq.magnitude * 100),
+    }));
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
   }

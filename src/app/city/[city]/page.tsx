@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCityBySlug, getAllCitySlugs, formatPopulation } from "@/data/major-cities";
 import { getCountryByCode } from "@/data/countries";
-import { fetchEarthquakesNearCity, processEarthquake, ProcessedEarthquake } from "@/lib/usgs-api";
+import { fetchEarthquakesNearCity, processEarthquake, ProcessedEarthquake, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
+import { getPhilippinesEarthquakes } from "@/lib/db-queries";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
+import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
 
 interface Props {
   params: Promise<{ city: string }>;
@@ -44,15 +46,49 @@ export default async function CityPage({ params }: Props) {
   // Fetch earthquakes near this city
   let earthquakes: ProcessedEarthquake[] = [];
   try {
-    const rawEarthquakes = await fetchEarthquakesNearCity(
-      city.lat,
-      city.lon,
-      city.searchRadiusKm,
-      30,
-      2.0,
-      500
-    );
-    earthquakes = rawEarthquakes.map(processEarthquake);
+    // Check if city is in the Philippines - use local database for better coverage
+    const isPhilippines = city.countryCode === 'PH' || 
+      (city.lat >= 4.5 && city.lat <= 21.5 && city.lon >= 116 && city.lon <= 127);
+    
+    if (isPhilippines) {
+      // Use local database (includes PHIVOLCS data)
+      const rawEarthquakes = getPhilippinesEarthquakes(30, 2.0, 5000);
+      earthquakes = rawEarthquakes
+        .map(eq => {
+          const distance = getDistanceFromLatLonInKm(city.lat, city.lon, eq.latitude, eq.longitude);
+          return {
+            id: eq.id,
+            magnitude: eq.magnitude,
+            magnitudeType: eq.magnitudeType,
+            place: eq.place,
+            time: eq.time,
+            timeAgo: getTimeAgo(eq.time),
+            latitude: eq.latitude,
+            longitude: eq.longitude,
+            depth: eq.depth,
+            url: eq.url || '#',
+            felt: eq.felt,
+            tsunami: eq.tsunami,
+            alert: null,
+            intensity: getMagnitudeIntensity(eq.magnitude),
+            significanceScore: Math.round(eq.magnitude * 100),
+            _distance: distance,
+          };
+        })
+        .filter((eq: any) => eq._distance <= city.searchRadiusKm)
+        .map(({ _distance, ...eq }: any) => eq as ProcessedEarthquake);
+    } else {
+      // Use USGS for non-Philippine cities
+      const rawEarthquakes = await fetchEarthquakesNearCity(
+        city.lat,
+        city.lon,
+        city.searchRadiusKm,
+        30,
+        2.0,
+        500
+      );
+      earthquakes = rawEarthquakes.map(processEarthquake);
+    }
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
     earthquakes = [];

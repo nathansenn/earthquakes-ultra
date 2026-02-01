@@ -9,12 +9,13 @@ import {
   getCitiesByRegion,
 } from "@/data/philippine-cities";
 import {
-  fetchEarthquakesNearLocation,
-  processEarthquake,
   ProcessedEarthquake,
   calculateStats,
   getMagnitudeColor,
+  getTimeAgo,
+  getMagnitudeIntensity,
 } from "@/lib/usgs-api";
+import { getPhilippinesEarthquakes } from "@/lib/db-queries";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { getFaultLinesNearLocation, calculateSeismicRisk, philippineFaultLines } from "@/data/fault-lines";
 import { NATIONAL_EMERGENCY_CONTACTS, REGIONAL_EMERGENCY_CONTACTS } from "@/data/educational-content";
@@ -77,26 +78,39 @@ export default async function CityPage({ params }: Props) {
     notFound();
   }
 
-  // Fetch M1+ earthquakes near this city
+  // Fetch M1+ earthquakes near this city from local database (includes PHIVOLCS)
   let earthquakes: (ProcessedEarthquake & { distanceKm: number })[] = [];
   try {
-    const raw = await fetchEarthquakesNearLocation(
-      city.latitude,
-      city.longitude,
-      200, // 200km radius
-      90,  // 90 days
-      1.0  // M1+ earthquakes
-    );
-    earthquakes = raw.map((eq) => {
-      const processed = processEarthquake(eq);
-      const distanceKm = getDistanceFromLatLonInKm(
-        city.latitude,
-        city.longitude,
-        processed.latitude,
-        processed.longitude
-      );
-      return { ...processed, distanceKm };
-    }).sort((a, b) => b.time.getTime() - a.time.getTime()); // Sort by time (most recent first)
+    const raw = getPhilippinesEarthquakes(90, 1.0, 5000); // 90 days, M1+
+    earthquakes = raw
+      .map((eq) => {
+        const distanceKm = getDistanceFromLatLonInKm(
+          city.latitude,
+          city.longitude,
+          eq.latitude,
+          eq.longitude
+        );
+        return {
+          id: eq.id,
+          magnitude: eq.magnitude,
+          magnitudeType: eq.magnitudeType,
+          place: eq.place,
+          time: eq.time,
+          timeAgo: getTimeAgo(eq.time),
+          latitude: eq.latitude,
+          longitude: eq.longitude,
+          depth: eq.depth,
+          url: eq.url || '#',
+          felt: eq.felt,
+          tsunami: eq.tsunami,
+          alert: null,
+          intensity: getMagnitudeIntensity(eq.magnitude),
+          significanceScore: Math.round(eq.magnitude * 100),
+          distanceKm,
+        };
+      })
+      .filter(eq => eq.distanceKm <= 200) // 200km radius
+      .sort((a, b) => b.time.getTime() - a.time.getTime()); // Sort by time (most recent first)
   } catch (error) {
     console.error("Failed to fetch earthquakes:", error);
   }
