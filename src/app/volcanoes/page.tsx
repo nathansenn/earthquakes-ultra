@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS } from "@/data/philippine-volcanoes";
 import { getPhilippinesEarthquakes } from "@/lib/db-queries";
-import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction";
+import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
 
 export const metadata: Metadata = {
   title: "Philippine Volcanoes | Strategic Monitoring Dashboard",
@@ -38,32 +38,37 @@ export default async function VolcanoesPage() {
     console.error("Failed to fetch earthquakes for volcanic assessment:", error);
   }
 
-  // Separate by risk level
+  // Separate by risk level (v2 includes CRITICAL and BACKGROUND)
+  const criticalRisk = assessments.filter(a => a.riskLevel === 'CRITICAL');
   const veryHighRisk = assessments.filter(a => a.riskLevel === 'VERY_HIGH');
   const highRisk = assessments.filter(a => a.riskLevel === 'HIGH');
   const elevatedRisk = assessments.filter(a => a.riskLevel === 'ELEVATED');
   const moderateAndLow = assessments.filter(a => 
-    a.riskLevel === 'MODERATE' || a.riskLevel === 'LOW'
+    a.riskLevel === 'MODERATE' || a.riskLevel === 'LOW' || a.riskLevel === 'BACKGROUND'
   );
 
   const getRiskColor = (level: string) => {
     const colors: Record<string, string> = {
+      'CRITICAL': 'bg-red-700 animate-pulse',
       'VERY_HIGH': 'bg-red-600',
       'HIGH': 'bg-orange-500',
       'ELEVATED': 'bg-yellow-500',
       'MODERATE': 'bg-lime-500',
       'LOW': 'bg-green-500',
+      'BACKGROUND': 'bg-gray-400',
     };
     return colors[level] || 'bg-gray-500';
   };
 
   const getRiskBg = (level: string) => {
     const colors: Record<string, string> = {
+      'CRITICAL': 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700',
       'VERY_HIGH': 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
       'HIGH': 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
       'ELEVATED': 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
       'MODERATE': 'bg-lime-50 dark:bg-lime-900/20 border-lime-200 dark:border-lime-800',
       'LOW': 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+      'BACKGROUND': 'bg-gray-50 dark:bg-gray-800/20 border-gray-200 dark:border-gray-700',
     };
     return colors[level] || 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800';
   };
@@ -104,7 +109,7 @@ export default async function VolcanoesPage() {
               <p className="text-sm text-orange-100">Elevated Attention</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold">{assessments[0]?.earthquakesAnalyzed || 0}</p>
+              <p className="text-2xl font-bold">{assessments[0]?.stats?.earthquakesAnalyzed || 0}</p>
               <p className="text-sm text-orange-100">Earthquakes Analyzed</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
@@ -151,20 +156,20 @@ export default async function VolcanoesPage() {
         </div>
       </section>
 
-      {/* Very High & High Risk Volcanoes */}
-      {(veryHighRisk.length > 0 || highRisk.length > 0) && (
+      {/* Critical, Very High & High Risk Volcanoes */}
+      {(criticalRisk.length > 0 || veryHighRisk.length > 0 || highRisk.length > 0) && (
         <section className="py-8 bg-red-50/50 dark:bg-red-900/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              Heightened Monitoring Recommended
+              {criticalRisk.length > 0 ? '⚠️ Critical Alert - Immediate Attention' : 'Heightened Monitoring Recommended'}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
               These volcanoes have elevated statistical indicators. Review your emergency plans.
             </p>
             
             <div className="grid md:grid-cols-2 gap-6">
-              {[...veryHighRisk, ...highRisk].map((assessment) => (
+              {[...criticalRisk, ...veryHighRisk, ...highRisk].map((assessment) => (
                 <div 
                   key={assessment.volcano.id}
                   className={`rounded-xl p-6 border-2 ${getRiskBg(assessment.riskLevel)}`}
@@ -188,7 +193,7 @@ export default async function VolcanoesPage() {
                     <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 text-center">
                       <p className="text-xs text-gray-500 dark:text-gray-400">Probability</p>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        {assessment.probabilityPercent}%
+                        {assessment.probability1Year}%
                       </p>
                     </div>
                     <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 text-center">
@@ -218,10 +223,10 @@ export default async function VolcanoesPage() {
                   {/* Key Factors */}
                   <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                     <strong>Contributing factors:</strong>{" "}
-                    {assessment.factors.nishimuraFactor > 1.1 && `Large EQ trigger (${assessment.factors.nishimuraFactor}x) • `}
-                    {assessment.factors.seismicityAnomalyFactor > 2 && `Seismic anomaly (${assessment.factors.seismicityAnomalyFactor}x) • `}
-                    {assessment.factors.bracketingFactor > 1 && `Dual-cluster bracketing • `}
-                    {assessment.factors.hydrothermalSensitivity > 1.5 && `Active hydrothermal system`}
+                    {assessment.factors.triggeringMultiplier > 1.1 && `Large EQ trigger (${assessment.factors.triggeringMultiplier}x) • `}
+                    {assessment.factors.bValueMultiplier > 1.1 && `b-value anomaly (${assessment.factors.bValueMultiplier}x) • `}
+                    {assessment.factors.clusterMultiplier > 1 && `Cluster effects (${assessment.factors.clusterMultiplier}x) • `}
+                    {assessment.factors.hydrothermalMultiplier > 1.5 && `Active hydrothermal system`}
                   </div>
 
                   {/* Clusters if present */}
@@ -284,7 +289,7 @@ export default async function VolcanoesPage() {
                       {assessment.volcano.name}
                     </h3>
                     <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                      {assessment.probabilityPercent}%
+                      {assessment.probability1Year}%
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -326,7 +331,7 @@ export default async function VolcanoesPage() {
                   {assessment.volcano.province}
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {assessment.probabilityPercent}% • {assessment.volcano.status.replace('_', ' ')}
+                  {assessment.probability1Year}% • {assessment.volcano.status.replace('_', ' ')}
                 </p>
               </div>
             ))}

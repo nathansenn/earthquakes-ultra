@@ -4,7 +4,7 @@ import { PHILIPPINE_VOLCANOES } from "@/data/philippine-volcanoes";
 import { GLOBAL_VOLCANOES, GlobalVolcano } from "@/data/global-volcanoes";
 import { getPhilippinesEarthquakes } from "@/lib/db-queries";
 import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
-import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction";
+import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
 
 export const metadata: Metadata = {
   title: "AI Volcano Risk Analysis | Global Volcanic Prediction System",
@@ -18,13 +18,15 @@ export const metadata: Metadata = {
 
 export const revalidate = 1800; // 30 minutes
 
-// Risk category colors
+// Risk category colors (v2 system)
 const RISK_COLORS: Record<string, { bg: string; badge: string }> = {
-  CRITICAL: { bg: 'bg-red-50 dark:bg-red-900/30', badge: 'bg-red-600 text-white animate-pulse' },
+  CRITICAL: { bg: 'bg-red-100 dark:bg-red-900/40', badge: 'bg-red-700 text-white animate-pulse' },
+  VERY_HIGH: { bg: 'bg-red-50 dark:bg-red-900/30', badge: 'bg-red-600 text-white' },
   HIGH: { bg: 'bg-orange-50 dark:bg-orange-900/30', badge: 'bg-orange-500 text-white' },
   ELEVATED: { bg: 'bg-yellow-50 dark:bg-yellow-900/30', badge: 'bg-yellow-500 text-black' },
   MODERATE: { bg: 'bg-lime-50 dark:bg-lime-900/30', badge: 'bg-lime-500 text-white' },
   LOW: { bg: 'bg-green-50 dark:bg-green-900/30', badge: 'bg-green-500 text-white' },
+  BACKGROUND: { bg: 'bg-gray-50 dark:bg-gray-800/30', badge: 'bg-gray-400 text-white' },
 };
 
 function formatPopulation(pop: number | undefined): string {
@@ -62,10 +64,14 @@ export default async function VolcanoAnalysisPage() {
   }
 
   // Separate by risk level
-  const criticalRisk = philippineAssessments.filter(a => a.probabilityPercent >= 35);
-  const highRisk = philippineAssessments.filter(a => a.probabilityPercent >= 20 && a.probabilityPercent < 35);
-  const elevatedRisk = philippineAssessments.filter(a => a.probabilityPercent >= 10 && a.probabilityPercent < 20);
-  const normalRisk = philippineAssessments.filter(a => a.probabilityPercent < 10);
+  // Use v2 risk levels for filtering
+  const criticalRisk = philippineAssessments.filter(a => a.riskLevel === 'CRITICAL');
+  const veryHighRisk = philippineAssessments.filter(a => a.riskLevel === 'VERY_HIGH');
+  const highRisk = philippineAssessments.filter(a => a.riskLevel === 'HIGH');
+  const elevatedRisk = philippineAssessments.filter(a => a.riskLevel === 'ELEVATED');
+  const normalRisk = philippineAssessments.filter(a => 
+    a.riskLevel === 'MODERATE' || a.riskLevel === 'LOW' || a.riskLevel === 'BACKGROUND'
+  );
 
   // High-risk global volcanoes (sort by population exposure)
   const highRiskGlobal = GLOBAL_VOLCANOES
@@ -102,7 +108,7 @@ export default async function VolcanoAnalysisPage() {
               <p className="text-xs sm:text-sm text-indigo-100">Elevated Risk (PH)</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
-              <p className="text-2xl sm:text-3xl font-bold">{philippineAssessments[0]?.earthquakesAnalyzed || 0}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{philippineAssessments[0]?.stats.earthquakesAnalyzed || 0}</p>
               <p className="text-xs sm:text-sm text-indigo-100">Earthquakes Analyzed</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
@@ -132,14 +138,14 @@ export default async function VolcanoAnalysisPage() {
         </div>
       </section>
 
-      {/* Critical & High Risk Philippine Volcanoes */}
-      {(criticalRisk.length > 0 || highRisk.length > 0) && (
+      {/* Critical, Very High & High Risk Philippine Volcanoes */}
+      {(criticalRisk.length > 0 || veryHighRisk.length > 0 || highRisk.length > 0) && (
         <section className="py-8 bg-red-50/50 dark:bg-red-900/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 mb-6">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                🚨 Elevated Risk Assessment - Philippines
+                {criticalRisk.length > 0 ? '⚠️ Critical Alert' : '🚨 Elevated Risk Assessment'} - Philippines
               </h2>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-3xl">
@@ -147,7 +153,7 @@ export default async function VolcanoAnalysisPage() {
             </p>
 
             <div className="grid md:grid-cols-2 gap-6">
-              {[...criticalRisk, ...highRisk].map((assessment) => (
+              {[...criticalRisk, ...veryHighRisk, ...highRisk].map((assessment) => (
                 <div 
                   key={assessment.volcano.id}
                   className={`rounded-xl p-6 border-2 ${RISK_COLORS[assessment.riskLevel]?.bg || 'bg-gray-50'} border-red-200 dark:border-red-800`}
@@ -171,7 +177,7 @@ export default async function VolcanoAnalysisPage() {
                     <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
                       <p className="text-xs text-gray-500 dark:text-gray-400">Risk Score</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {assessment.probabilityPercent}%
+                        {assessment.probability1Year}%
                       </p>
                     </div>
                     <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
@@ -199,16 +205,16 @@ export default async function VolcanoAnalysisPage() {
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-4">
                     <strong>Contributing factors:</strong>
                     <ul className="mt-1 space-y-1">
-                      {assessment.factors.nishimuraFactor > 1.1 && (
-                        <li>• Large earthquake trigger ({assessment.factors.nishimuraFactor.toFixed(2)}x)</li>
+                      {assessment.factors.triggeringMultiplier > 1.1 && (
+                        <li>• Large earthquake trigger ({assessment.factors.triggeringMultiplier.toFixed(2)}x)</li>
                       )}
-                      {assessment.factors.seismicityAnomalyFactor > 1.5 && (
-                        <li>• Seismicity anomaly ({assessment.factors.seismicityAnomalyFactor.toFixed(2)}x)</li>
+                      {assessment.factors.bValueMultiplier > 1.5 && (
+                        <li>• Seismicity anomaly ({assessment.factors.bValueMultiplier.toFixed(2)}x)</li>
                       )}
-                      {assessment.factors.bracketingFactor > 1 && (
+                      {assessment.factors.clusterMultiplier > 1 && (
                         <li>• Dual-cluster stress concentration</li>
                       )}
-                      {assessment.factors.hydrothermalSensitivity > 1.5 && (
+                      {assessment.factors.hydrothermalMultiplier > 1.5 && (
                         <li>• Active hydrothermal system</li>
                       )}
                     </ul>
@@ -273,7 +279,7 @@ export default async function VolcanoAnalysisPage() {
                       {assessment.volcano.name}
                     </h3>
                     <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                      {assessment.probabilityPercent}%
+                      {assessment.probability1Year}%
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -315,7 +321,7 @@ export default async function VolcanoAnalysisPage() {
                   {assessment.volcano.province}
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {assessment.probabilityPercent}% • {assessment.volcano.status}
+                  {assessment.probability1Year}% • {assessment.volcano.status}
                 </p>
               </div>
             ))}
