@@ -92,26 +92,26 @@ export default async function VolcanoAnalysisPage() {
           </div>
 
           {/* Key Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8">
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{totalVolcanoes}</p>
-              <p className="text-sm text-indigo-100">Volcanoes Tracked</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-8">
+            <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold">{totalVolcanoes}</p>
+              <p className="text-xs sm:text-sm text-indigo-100">Volcanoes Tracked</p>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{criticalRisk.length + highRisk.length}</p>
-              <p className="text-sm text-indigo-100">Elevated Risk (PH)</p>
+            <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold">{criticalRisk.length + highRisk.length}</p>
+              <p className="text-xs sm:text-sm text-indigo-100">Elevated Risk (PH)</p>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{philippineAssessments[0]?.earthquakesAnalyzed || 0}</p>
-              <p className="text-sm text-indigo-100">Earthquakes Analyzed</p>
+            <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold">{philippineAssessments[0]?.earthquakesAnalyzed || 0}</p>
+              <p className="text-xs sm:text-sm text-indigo-100">Earthquakes Analyzed</p>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{recentGlobalEarthquakes}</p>
-              <p className="text-sm text-indigo-100">M5+ (7 days)</p>
+            <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold">{recentGlobalEarthquakes}</p>
+              <p className="text-xs sm:text-sm text-indigo-100">M5+ (7 days)</p>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{uniqueCountries}</p>
-              <p className="text-sm text-indigo-100">Countries</p>
+            <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center col-span-2 sm:col-span-1">
+              <p className="text-2xl sm:text-3xl font-bold">{uniqueCountries}</p>
+              <p className="text-xs sm:text-sm text-indigo-100">Countries</p>
             </div>
           </div>
         </div>
@@ -393,13 +393,102 @@ export default async function VolcanoAnalysisPage() {
                 </div>
 
                 <Link 
-                  href={`/volcanoes/global/${volcano.id}`}
+                  href={`/volcanoes/${volcano.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`}
                   className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
                   View Details →
                 </Link>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Real-Time Monitoring Resources */}
+      <section className="py-12 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold mb-2 text-center">🛰️ Real-Time Monitoring Resources</h2>
+          <p className="text-center text-indigo-200 mb-8">Live satellite imagery and official volcanic monitoring</p>
+          
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a
+              href="https://zoom.earth/#view=12.5,122,5z/layers=fires"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white/10 hover:bg-white/20 rounded-xl p-4 text-center transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🌍</div>
+              <h3 className="font-semibold">Zoom Earth Live</h3>
+              <p className="text-sm text-indigo-200 mt-1">Real-time satellite & thermal hotspots</p>
+            </a>
+            
+            <a
+              href="https://worldview.earthdata.nasa.gov/?v=115,4,130,22&l=Reference_Labels_15m,MODIS_Terra_Thermal_Anomalies_All,Coastlines_15m,VIIRS_NOAA20_CorrectedReflectance_TrueColor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white/10 hover:bg-white/20 rounded-xl p-4 text-center transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🚀</div>
+              <h3 className="font-semibold">NASA Worldview</h3>
+              <p className="text-sm text-indigo-200 mt-1">MODIS thermal anomalies</p>
+            </a>
+            
+            <a
+              href="https://apps.sentinel-hub.com/eo-browser/?zoom=7&lat=12.5&lng=122&themeId=DEFAULT-THEME&visualizationUrl=https%3A%2F%2Fservices.sentinel-hub.com%2Fogc%2Fwms%2Fbd86bcc0-f318-402b-a145-015f85b9427e&datasetId=S2L2A"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white/10 hover:bg-white/20 rounded-xl p-4 text-center transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🔬</div>
+              <h3 className="font-semibold">Sentinel Hub</h3>
+              <p className="text-sm text-indigo-200 mt-1">High-res Copernicus imagery</p>
+            </a>
+            
+            <a
+              href="https://www.phivolcs.dost.gov.ph/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white/10 hover:bg-white/20 rounded-xl p-4 text-center transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🇵🇭</div>
+              <h3 className="font-semibold">PHIVOLCS Official</h3>
+              <p className="text-sm text-indigo-200 mt-1">Official volcano bulletins</p>
+            </a>
+          </div>
+          
+          <div className="grid sm:grid-cols-3 gap-4 mt-4">
+            <a
+              href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@122,12.5,6z"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-orange-500/20 hover:bg-orange-500/30 rounded-xl p-4 text-center transition-all group border border-orange-400/30"
+            >
+              <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">🔥</div>
+              <h3 className="font-semibold text-orange-200">NASA FIRMS</h3>
+              <p className="text-xs text-orange-300 mt-1">Fire/thermal detection within 3 hours</p>
+            </a>
+            
+            <a
+              href="https://earthquake.usgs.gov/earthquakes/map/?extent=4.39,115.31&extent=21.94,127.97&map=terrain"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-red-500/20 hover:bg-red-500/30 rounded-xl p-4 text-center transition-all group border border-red-400/30"
+            >
+              <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">📊</div>
+              <h3 className="font-semibold text-red-200">USGS Live Map</h3>
+              <p className="text-xs text-red-300 mt-1">Real-time earthquake detection</p>
+            </a>
+            
+            <a
+              href="https://volcano.si.edu/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-purple-500/20 hover:bg-purple-500/30 rounded-xl p-4 text-center transition-all group border border-purple-400/30"
+            >
+              <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">🌋</div>
+              <h3 className="font-semibold text-purple-200">Smithsonian GVP</h3>
+              <p className="text-xs text-purple-300 mt-1">Global eruption reports</p>
+            </a>
           </div>
         </div>
       </section>
