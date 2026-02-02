@@ -1,5 +1,5 @@
 # Earthquakes Ultra - Issue Audit
-Generated: 2026-02-01 | Updated: 2026-02-01
+Generated: 2026-02-01 | Updated: 2026-02-02
 
 ## ✅ All Critical Issues Fixed
 
@@ -48,6 +48,27 @@ Generated: 2026-02-01 | Updated: 2026-02-01
 - **Commit:** 56edfc9
 - **Issue:** `fetchRegionEarthquakes('philippines')` only used USGS + EMSC
 - **Fix:** Now includes PHIVOLCS local database as primary source
+
+### 10. ✅ FIXED: Mount Apo and Philippine Volcano Pages Missing
+- **Commit:** 0440eec
+- **Issue:** `/volcanoes/mount-apo` returned 404 - PH volcanoes not in generateStaticParams
+- **Fix:** Added all 24 Philippine volcanoes to slug generation
+- **Features:** PHIVOLCS data, alert levels, nearby earthquakes, satellite links
+
+### 11. ✅ FIXED: Analysis Page Styling/Overflow Issues
+- **Commit:** 0440eec
+- **Issue:** Grid layouts overflowed on mobile devices
+- **Fix:** Improved responsive breakpoints, added sm/lg variants
+
+### 12. ✅ ADDED: Real-Time Satellite Monitoring Links
+- **Commit:** 0440eec
+- **Features:**
+  - NASA Worldview (MODIS thermal)
+  - NASA FIRMS (fire/thermal within 3 hours)
+  - Zoom Earth Live
+  - Sentinel Hub (Copernicus)
+  - PHIVOLCS Official
+  - Smithsonian GVP
 
 ## ✅ All Pages Verified Working
 
