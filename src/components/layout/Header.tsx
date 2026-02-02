@@ -1,13 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { ThemeToggle } from "./ThemeToggle";
+import { SearchBar } from "./SearchBar";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [latestAlert, setLatestAlert] = useState<{ mag: number; place: string; time: Date } | null>(null);
+
+  // Fetch latest significant earthquake for alert badge
+  useEffect(() => {
+    const fetchLatest = async () => {
+      try {
+        const res = await fetch(
+          "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&limit=1&minmagnitude=5&orderby=time",
+          { next: { revalidate: 60 } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.features?.[0]) {
+            const eq = data.features[0];
+            setLatestAlert({
+              mag: eq.properties.mag,
+              place: eq.properties.place,
+              time: new Date(eq.properties.time),
+            });
+          }
+        }
+      } catch (e) {
+        // Silently fail - alert badge is optional
+      }
+    };
+    fetchLatest();
+  }, []);
+
+  // Check if latest alert is within last 24 hours
+  const isRecentAlert = latestAlert && (Date.now() - latestAlert.time.getTime()) < 24 * 60 * 60 * 1000;
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+      {/* Alert Banner for significant recent earthquakes */}
+      {isRecentAlert && latestAlert.mag >= 6 && (
+        <div className="bg-red-600 text-white py-1.5 px-4 text-center text-sm">
+          <Link href="/earthquakes" className="hover:underline">
+            ⚠️ <strong>M{latestAlert.mag.toFixed(1)}</strong> earthquake detected: {latestAlert.place} • Click for details
+          </Link>
+        </div>
+      )}
+      
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -29,7 +70,9 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-4">
+            <SearchBar />
+            
             <Link
               href="/earthquakes"
               className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1"
@@ -71,7 +114,7 @@ export function Header() {
               <span>3D Globe</span>
             </Link>
             <Link
-              href="/volcanoes/global"
+              href="/volcanoes"
               className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1"
             >
               <span>🌋</span>
@@ -85,11 +128,25 @@ export function Header() {
             </Link>
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* Right side buttons */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            
+            {/* Alert badge */}
+            {isRecentAlert && (
+              <Link
+                href="/earthquakes"
+                className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium animate-pulse"
+              >
+                <span className="w-2 h-2 bg-red-500 rounded-full" />
+                M{latestAlert.mag.toFixed(1)}
+              </Link>
+            )}
+            
+            {/* Near Me CTA */}
             <Link
               href="/near-me"
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+              className="hidden md:flex px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg items-center gap-2"
             >
               <svg
                 className="w-4 h-4"
@@ -112,43 +169,48 @@ export function Header() {
               </svg>
               Near Me
             </Link>
-          </div>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Toggle menu"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle menu"
             >
-              {isMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
-            </svg>
-          </button>
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {isMenuOpen ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex flex-col gap-3">
+              {/* Mobile Search */}
+              <div className="mb-2">
+                <SearchBar />
+              </div>
+
               <Link
                 href="/earthquakes"
                 className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium py-2"
@@ -185,12 +247,12 @@ export function Header() {
                 <span>3D Globe</span>
               </Link>
               <Link
-                href="/volcanoes/global"
+                href="/volcanoes"
                 className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span>🌋</span>
-                <span>Global Volcanoes</span>
+                <span>Volcanoes</span>
               </Link>
               <Link
                 href="/preparedness"

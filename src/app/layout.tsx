@@ -3,6 +3,7 @@ import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { DynamicFooter } from "@/components/layout/DynamicFooter";
+import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -115,6 +116,7 @@ export default function RootLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <DynamicFooter pageType="home" />
+        <KeyboardShortcuts />
       </body>
     </html>
   );

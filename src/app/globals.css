@@ -191,3 +191,113 @@ body {
 .prose-earthquake strong {
   font-weight: 600;
 }
+
+/* Hide scrollbar utility */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Print styles */
+@media print {
+  /* Hide navigation and interactive elements */
+  header,
+  footer,
+  .no-print,
+  button:not(.print-show),
+  nav,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Reset backgrounds for print */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure content fills the page */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Make sections page-break friendly */
+  section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    background: white !important;
+    color: black !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+  }
+
+  /* Ensure headings stay with content */
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+    color: black !important;
+  }
+
+  /* Make emergency numbers visible */
+  .emergency-number {
+    font-size: 18pt !important;
+    font-weight: bold !important;
+  }
+
+  /* Expand all cards */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Remove gradients */
+  .bg-gradient-to-br,
+  .bg-gradient-to-r {
+    background: #f0f0f0 !important;
+  }
+
+  /* Make links visible */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  /* Don't show link URLs for navigation links */
+  nav a[href]:after,
+  header a[href]:after {
+    content: none;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1cm;
+  }
+
+  /* First page header */
+  @page :first {
+    margin-top: 2cm;
+  }
+}
+
+/* "Just Now" pulse animation */
+@keyframes just-now-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-just-now {
+  animation: just-now-pulse 1.5s ease-in-out infinite;
+}

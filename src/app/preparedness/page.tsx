@@ -11,6 +11,7 @@ import {
   TSUNAMI_INFO,
   LIQUEFACTION_INFO,
 } from "@/data/educational-content";
+import { PrintButton, StickyNav } from "@/components/preparedness/PrintButton";
 
 export const metadata: Metadata = {
   title: "Complete Earthquake Preparedness Guide | Safety Tips, Emergency Kit & What to Do",
@@ -70,9 +71,13 @@ export default function PreparednessPage() {
             <a href="#tsunami" className="px-4 py-2 bg-white/20 rounded-full text-sm hover:bg-white/30 transition">
               🌊 Tsunami Safety
             </a>
+            <PrintButton />
           </div>
         </div>
       </section>
+
+      {/* Sticky Navigation */}
+      <StickyNav />
 
       {/* CRITICAL: Drop-Cover-Hold */}
       <section id="drop-cover-hold" className="py-12 bg-red-600 text-white">
