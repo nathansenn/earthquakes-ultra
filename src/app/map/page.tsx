@@ -23,23 +23,32 @@ export default function MapPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        // Fetch from local database API (includes PHIVOLCS + USGS data)
-        const params = new URLSearchParams({
-          days: days.toString(),
-          minmag: minMag.toString(),
-          format: "geojson",
-          limit: "2000",
-        });
+        let data;
         
-        // Only add region filter if not global
-        if (region !== "global") {
-          params.set("region", region);
+        if (region === "global") {
+          // Use global multi-source API
+          const params = new URLSearchParams({
+            days: days.toString(),
+            minmag: minMag.toString(),
+          });
+          const response = await fetch(`/api/global?${params}`, {
+            cache: 'no-store'
+          });
+          data = await response.json();
+        } else {
+          // Use local database API for Philippines (includes PHIVOLCS data)
+          const params = new URLSearchParams({
+            days: days.toString(),
+            minmag: minMag.toString(),
+            region: region,
+            format: "geojson",
+            limit: "2000",
+          });
+          const response = await fetch(`/api/earthquakes?${params}`, {
+            cache: 'no-store'
+          });
+          data = await response.json();
         }
-
-        const response = await fetch(`/api/earthquakes?${params}`, {
-          cache: 'no-store'
-        });
-        const data = await response.json();
         
         // Process GeoJSON features into our format
         const processed: ProcessedEarthquake[] = data.features.map((feature: any) => ({
