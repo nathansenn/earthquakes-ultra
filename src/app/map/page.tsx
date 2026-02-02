@@ -11,6 +11,7 @@ export default function MapPage() {
   const [selectedQuake, setSelectedQuake] = useState<ProcessedEarthquake | null>(null);
   const [days, setDays] = useState(7);
   const [minMag, setMinMag] = useState(1.0);
+  const [region, setRegion] = useState<"global" | "philippines">("global");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Set page title
@@ -26,10 +27,14 @@ export default function MapPage() {
         const params = new URLSearchParams({
           days: days.toString(),
           minmag: minMag.toString(),
-          region: "philippines",
           format: "geojson",
           limit: "2000",
         });
+        
+        // Only add region filter if not global
+        if (region !== "global") {
+          params.set("region", region);
+        }
 
         const response = await fetch(`/api/earthquakes?${params}`, {
           cache: 'no-store'
@@ -64,7 +69,7 @@ export default function MapPage() {
     }
 
     fetchData();
-  }, [days, minMag]);
+  }, [days, minMag, region]);
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
@@ -98,6 +103,14 @@ export default function MapPage() {
           <div className="flex items-center gap-4">
             {/* Filters */}
             <div className="flex items-center gap-2">
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value as "global" | "philippines")}
+                className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+              >
+                <option value="global">🌍 Global</option>
+                <option value="philippines">🇵🇭 Philippines</option>
+              </select>
               <select
                 value={days}
                 onChange={(e) => setDays(Number(e.target.value))}
@@ -195,12 +208,27 @@ export default function MapPage() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">Live Earthquake Map</h1>
-              <p className="text-blue-100">Real-time seismic activity across the Philippines</p>
+              <p className="text-blue-100">
+                {region === "global" 
+                  ? "Real-time seismic activity worldwide" 
+                  : "Real-time seismic activity across the Philippines"}
+              </p>
             </div>
           </div>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-4 mt-6">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-blue-100">Region:</label>
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value as "global" | "philippines")}
+                className="bg-white/20 text-white border border-white/30 rounded-lg px-3 py-1.5 text-sm"
+              >
+                <option value="global" className="text-gray-900">🌍 Global</option>
+                <option value="philippines" className="text-gray-900">🇵🇭 Philippines</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2">
               <label className="text-sm text-blue-100">Time range:</label>
               <select
