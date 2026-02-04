@@ -247,3 +247,106 @@ export function getLastUpdateTime(): { lastUpdate: Date | null; phivolcsCount: n
     return { lastUpdate: null, phivolcsCount: 0 };
   }
 }
+
+/**
+ * Get today vs yesterday comparison for Philippines seismicity
+ * Returns counts and largest magnitudes for comparison
+ */
+export function getTodayVsYesterday() {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    
+    // Calculate time boundaries (midnight PHT = UTC+8)
+    const now = Date.now();
+    const phtOffset = 8 * 60 * 60 * 1000; // 8 hours in ms
+    const todayMidnight = new Date(now + phtOffset);
+    todayMidnight.setUTCHours(0, 0, 0, 0);
+    const todayStartMs = todayMidnight.getTime() - phtOffset;
+    const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
+    
+    // Today's stats
+    const todayStats = db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN magnitude >= 3 THEN 1 ELSE 0 END) as m3Plus,
+        SUM(CASE WHEN magnitude >= 4 THEN 1 ELSE 0 END) as m4Plus,
+        MAX(magnitude) as maxMag,
+        AVG(magnitude) as avgMag
+      FROM earthquakes 
+      WHERE timestamp >= ?
+        AND latitude >= ? AND latitude <= ?
+        AND longitude >= ? AND longitude <= ?
+    `).get(
+      todayStartMs,
+      PHILIPPINES_BOUNDS.minLat,
+      PHILIPPINES_BOUNDS.maxLat,
+      PHILIPPINES_BOUNDS.minLon,
+      PHILIPPINES_BOUNDS.maxLon
+    ) as Record<string, number>;
+    
+    // Yesterday's stats
+    const yesterdayStats = db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN magnitude >= 3 THEN 1 ELSE 0 END) as m3Plus,
+        SUM(CASE WHEN magnitude >= 4 THEN 1 ELSE 0 END) as m4Plus,
+        MAX(magnitude) as maxMag,
+        AVG(magnitude) as avgMag
+      FROM earthquakes 
+      WHERE timestamp >= ? AND timestamp < ?
+        AND latitude >= ? AND latitude <= ?
+        AND longitude >= ? AND longitude <= ?
+    `).get(
+      yesterdayStartMs,
+      todayStartMs,
+      PHILIPPINES_BOUNDS.minLat,
+      PHILIPPINES_BOUNDS.maxLat,
+      PHILIPPINES_BOUNDS.minLon,
+      PHILIPPINES_BOUNDS.maxLon
+    ) as Record<string, number>;
+    
+    db.close();
+    
+    const today = {
+      total: todayStats.total || 0,
+      m3Plus: todayStats.m3Plus || 0,
+      m4Plus: todayStats.m4Plus || 0,
+      maxMag: todayStats.maxMag || 0,
+      avgMag: todayStats.avgMag || 0,
+    };
+    
+    const yesterday = {
+      total: yesterdayStats.total || 0,
+      m3Plus: yesterdayStats.m3Plus || 0,
+      m4Plus: yesterdayStats.m4Plus || 0,
+      maxMag: yesterdayStats.maxMag || 0,
+      avgMag: yesterdayStats.avgMag || 0,
+    };
+    
+    // Calculate change percentages
+    const totalChange = yesterday.total > 0 
+      ? Math.round(((today.total - yesterday.total) / yesterday.total) * 100) 
+      : (today.total > 0 ? 100 : 0);
+    
+    // Determine activity level
+    let activityLevel: 'low' | 'normal' | 'elevated' | 'high' = 'normal';
+    if (totalChange > 50 || today.m4Plus > 2) activityLevel = 'high';
+    else if (totalChange > 20 || today.m4Plus > 0) activityLevel = 'elevated';
+    else if (totalChange < -30) activityLevel = 'low';
+    
+    return {
+      today,
+      yesterday,
+      totalChange,
+      activityLevel,
+    };
+  } catch (error) {
+    console.error('Today vs yesterday error:', error);
+    return {
+      today: { total: 0, m3Plus: 0, m4Plus: 0, maxMag: 0, avgMag: 0 },
+      yesterday: { total: 0, m3Plus: 0, m4Plus: 0, maxMag: 0, avgMag: 0 },
+      totalChange: 0,
+      activityLevel: 'normal' as const,
+    };
+  }
+}

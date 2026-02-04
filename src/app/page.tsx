@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
-import { getPhilippinesStats, getLastUpdateTime } from "@/lib/db-queries";
+import { getPhilippinesStats, getLastUpdateTime, getTodayVsYesterday } from "@/lib/db-queries";
 import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEarthquake } from "@/lib/multi-source-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
@@ -105,6 +105,9 @@ export default async function HomePage() {
   
   // Get last update time for PHIVOLCS data
   const { lastUpdate: phivolcsLastUpdate, phivolcsCount } = getLastUpdateTime();
+  
+  // Get today vs yesterday comparison
+  const phComparison = getTodayVsYesterday();
   
   // Significant earthquake stats
   const globalM5Plus = significantGlobal.filter(eq => eq.magnitude >= 5).length;
@@ -376,6 +379,51 @@ export default async function HomePage() {
                   View Region →
                 </Link>
               </div>
+              
+              {/* Today vs Yesterday Comparison */}
+              <div className="mb-4 p-3 rounded-lg bg-white/70 dark:bg-gray-800/70 border border-red-200 dark:border-red-700">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-red-900 dark:text-red-200">Today vs Yesterday</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    phComparison.activityLevel === 'high' 
+                      ? 'bg-red-500 text-white' 
+                      : phComparison.activityLevel === 'elevated'
+                      ? 'bg-orange-500 text-white'
+                      : phComparison.activityLevel === 'low'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-400 text-white'
+                  }`}>
+                    {phComparison.activityLevel === 'high' ? '⚠️ High' 
+                      : phComparison.activityLevel === 'elevated' ? '📈 Elevated'
+                      : phComparison.activityLevel === 'low' ? '📉 Low'
+                      : '➡️ Normal'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-red-900 dark:text-red-200">
+                      {phComparison.today.total}
+                      {phComparison.totalChange !== 0 && (
+                        <span className={`text-xs ml-1 ${phComparison.totalChange > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                          {phComparison.totalChange > 0 ? '↑' : '↓'}{Math.abs(phComparison.totalChange)}%
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-red-700 dark:text-red-400">Today</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{phComparison.yesterday.total}</p>
+                    <p className="text-[10px] text-red-700 dark:text-red-400">Yesterday</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-red-600">
+                      {phComparison.today.maxMag > 0 ? phComparison.today.maxMag.toFixed(1) : '—'}
+                    </p>
+                    <p className="text-[10px] text-red-700 dark:text-red-400">Max Today</p>
+                  </div>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-red-900 dark:text-red-200">{phStats.total}</p>
