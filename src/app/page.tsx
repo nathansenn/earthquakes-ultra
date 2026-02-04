@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { fetchGlobalM1Earthquakes, fetchGlobalEarthquakes, processEarthquake, ProcessedEarthquake, calculateStats, getMagnitudeColor, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
-import { getPhilippinesStats } from "@/lib/db-queries";
+import { getPhilippinesStats, getLastUpdateTime } from "@/lib/db-queries";
 import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEarthquake } from "@/lib/multi-source-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
@@ -30,6 +30,16 @@ export const metadata: Metadata = {
 
 // Revalidate every 5 minutes
 export const revalidate = 1800;
+
+// Helper to format time ago for server component
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
 
 export default async function HomePage() {
   // Fetch global M1+ earthquakes from multiple sources (last 24h)
@@ -92,6 +102,9 @@ export default async function HomePage() {
   
   // Get Philippine stats from local database (last 7 days)
   const phStats = getPhilippinesStats(7);
+  
+  // Get last update time for PHIVOLCS data
+  const { lastUpdate: phivolcsLastUpdate, phivolcsCount } = getLastUpdateTime();
   
   // Significant earthquake stats
   const globalM5Plus = significantGlobal.filter(eq => eq.magnitude >= 5).length;
@@ -264,9 +277,17 @@ export default async function HomePage() {
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   🌍 Global Earthquake Dashboard
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Complete seismic data from around the world — last 24 hours
-                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Complete seismic data from around the world — last 24 hours
+                  </p>
+                  {phivolcsLastUpdate && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                      PHIVOLCS updated {formatTimeAgo(phivolcsLastUpdate)}
+                    </span>
+                  )}
+                </div>
               </div>
               <Link
                 href="/global"
@@ -370,7 +391,14 @@ export default async function HomePage() {
                 </div>
               </div>
               <div className="mt-4 text-sm text-red-700 dark:text-red-400">
-                <p>Monitoring {philippineCities.length} cities • {PHILIPPINE_VOLCANOES.length} volcanoes • {activeFaults} active faults</p>
+                <p>
+                  Monitoring {philippineCities.length} cities • {PHILIPPINE_VOLCANOES.length} volcanoes • {activeFaults} active faults
+                  {phivolcsCount > 0 && (
+                    <span className="ml-2 text-red-600 dark:text-red-300 font-medium">
+                      • {phivolcsCount.toLocaleString()} PHIVOLCS records
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 

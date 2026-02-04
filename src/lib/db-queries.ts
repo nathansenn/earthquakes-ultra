@@ -218,3 +218,32 @@ export function getDatabaseInfo() {
     return null;
   }
 }
+
+/**
+ * Get the last update time for PHIVOLCS data
+ * Returns the timestamp of the most recent earthquake in the database
+ */
+export function getLastUpdateTime(): { lastUpdate: Date | null; phivolcsCount: number } {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    
+    // Get most recent PHIVOLCS entry and count
+    const result = db.prepare(`
+      SELECT 
+        MAX(timestamp) as lastTimestamp,
+        COUNT(*) as count
+      FROM earthquakes 
+      WHERE source = 'phivolcs'
+    `).get() as { lastTimestamp: number | null; count: number };
+    
+    db.close();
+    
+    return {
+      lastUpdate: result.lastTimestamp ? new Date(result.lastTimestamp) : null,
+      phivolcsCount: result.count || 0,
+    };
+  } catch (error) {
+    console.error('Last update time error:', error);
+    return { lastUpdate: null, phivolcsCount: 0 };
+  }
+}
