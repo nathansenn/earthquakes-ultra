@@ -337,9 +337,9 @@ function linearRegression(x: number[], y: number[]): { slope: number; intercept:
  */
 export function analyzeDepthMigration(
   earthquakes: Earthquake[],
-  windowDays: number = DEPTH_MIGRATION.windowDays
+  windowDays: number = DEPTH_MIGRATION.windowDays,
+  now: number = Date.now()
 ): DepthMigrationAnalysis {
-  const now = Date.now();
   const windowMs = windowDays * 24 * 60 * 60 * 1000;
   
   // Filter to recent events with valid depths
@@ -478,9 +478,9 @@ export function analyzeBValue(
  */
 export function analyzeAcceleration(
   earthquakes: Earthquake[],
-  windowDays: number = 30
+  windowDays: number = 30,
+  now: number = Date.now()
 ): AccelerationAnalysis {
-  const now = Date.now();
   const windowMs = windowDays * 24 * 60 * 60 * 1000;
   
   // Bin events by day
@@ -875,9 +875,9 @@ function calculateHydrothermalMultiplier(level: 0 | 1 | 2 | 3): number {
 
 function calculateRecentActivityMultiplier(
   volcano: Volcano,
-  earthquakes: Earthquake[]
+  earthquakes: Earthquake[],
+  now: number = Date.now()
 ): number {
-  const now = Date.now();
   const days30 = 30 * 24 * 60 * 60 * 1000;
   
   // Near-field shallow events in last 30 days
@@ -1081,11 +1081,11 @@ export function assessVolcanoRisk(
   
   // Run component analyses
   const triggeringAnalysis = analyzeTriggeringEvents(enrichedEarthquakes, volcano, currentDate);
-  const depthMigration = analyzeDepthMigration(localEvents, 14);
+  const depthMigration = analyzeDepthMigration(localEvents, 14, now);
   // b-value needs sufficient local events - use regional if local is sparse
   const bValueInput = localEvents.length >= 30 ? localEvents : regionalEvents;
   const bValueAnalysis = analyzeBValue(bValueInput, 2.0);
-  const acceleration = analyzeAcceleration(localEvents, 30);
+  const acceleration = analyzeAcceleration(localEvents, 30, now);
   const clusters = identifyClusters(localEvents, volcano, 30, 72);
   
   // Calculate statistics
@@ -1113,7 +1113,7 @@ export function assessVolcanoRisk(
   const accelerationMultiplier = calculateAccelerationMultiplier(acceleration);
   const clusterMultiplier = calculateClusterMultiplier(clusters);
   const hydrothermalMultiplier = calculateHydrothermalMultiplier(volcano.hydrothermalActivity);
-  const recentActivityMultiplier = calculateRecentActivityMultiplier(volcano, enrichedEarthquakes);
+  const recentActivityMultiplier = calculateRecentActivityMultiplier(volcano, enrichedEarthquakes, now);
   
   // Combined multiplier (multiplicative with diminishing returns)
   const rawMultiplier = triggeringMultiplier *

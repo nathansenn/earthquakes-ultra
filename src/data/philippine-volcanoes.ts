@@ -22,6 +22,15 @@ export interface Volcano {
   description: string;
 }
 
+/**
+ * Canonical volcano name → URL slug.
+ * Must stay in sync with the `[slug]` route's generateStaticParams and the
+ * global-volcanoes `volcanoToSlug`, otherwise "View Details" links 404.
+ */
+export function volcanoNameToSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 // Risk level descriptions for strategic planning (NOT fear-based)
 export const RISK_LEVEL_DESCRIPTIONS = {
   'VERY_HIGH': {

@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { PHILIPPINE_VOLCANOES } from "@/data/philippine-volcanoes";
+import { PHILIPPINE_VOLCANOES, volcanoNameToSlug } from "@/data/philippine-volcanoes";
 import { GLOBAL_VOLCANOES, GlobalVolcano } from "@/data/global-volcanoes";
-import { getPhilippinesEarthquakes } from "@/lib/db-queries";
+import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } from "@/lib/db-queries";
 import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
+import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
 
 export const metadata: Metadata = {
   title: "AI Volcano Risk Analysis | Global Volcanic Prediction System",
@@ -40,7 +41,11 @@ export default async function VolcanoAnalysisPage() {
   // Fetch earthquake data for analysis
   let philippineAssessments: Awaited<ReturnType<typeof assessAllVolcanoes>> = [];
   let recentGlobalEarthquakes = 0;
-  
+
+  // Anchor the analysis to the freshest available data and report its age.
+  const referenceTime = getDataReferenceTime();
+  const freshness = getDataFreshness();
+
   try {
     // Fetch Philippine earthquakes for volcanic assessment from local database
     const rawPhilippineEqs = getPhilippinesEarthquakes(30, 2.0, 5000);
@@ -53,8 +58,8 @@ export default async function VolcanoAnalysisPage() {
       timestamp: eq.time,
       location: eq.place || 'Unknown',
     }));
-    
-    philippineAssessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, philippineEqs);
+
+    philippineAssessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, philippineEqs, new Date(referenceTime));
     
     // Fetch global significant earthquakes (still from USGS for global data)
     const globalEqs = await fetchGlobalEarthquakes(7, 5.0);
@@ -137,6 +142,9 @@ export default async function VolcanoAnalysisPage() {
           </div>
         </div>
       </section>
+
+      {/* Stale-data warning (only when the snapshot is behind) */}
+      <StaleDataBanner latest={freshness.latest} ageDays={freshness.ageDays} isStale={freshness.isStale} />
 
       {/* Critical, Very High & High Risk Philippine Volcanoes */}
       {(criticalRisk.length > 0 || veryHighRisk.length > 0 || highRisk.length > 0) && (
@@ -242,8 +250,8 @@ export default async function VolcanoAnalysisPage() {
                       {assessment.volcano.monitoringStations} stations • 
                       {assessment.volcano.hasHazardMap ? ' Has hazard map' : ' No hazard map'}
                     </div>
-                    <Link 
-                      href={`/volcanoes/${assessment.volcano.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    <Link
+                      href={`/volcanoes/${volcanoNameToSlug(assessment.volcano.name)}`}
                       className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
                     >
                       View Details →
@@ -599,9 +607,17 @@ export default async function VolcanoAnalysisPage() {
       </section>
 
       <footer className="py-4 bg-gray-100 dark:bg-gray-900 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          AI Analysis Last Updated: {new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' })} PHT
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          <DataFreshness
+            latest={freshness.latest}
+            ageDays={freshness.ageDays}
+            isStale={freshness.isStale}
+            label="Seismic data"
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Page generated {new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' })} PHT
+          </p>
+        </div>
       </footer>
     </div>
   );

@@ -49,6 +49,71 @@ const PHILIPPINES_BOUNDS = {
 };
 
 /**
+ * Reference "now" for rolling time-window queries.
+ *
+ * The PHIVOLCS/USGS snapshot is committed to the repo on a schedule, so the
+ * newest row can lag wall-clock time (and in a stale deployment can be far
+ * behind it). Anchoring "last N days" windows to the newest available row —
+ * rather than Date.now() — keeps the queries meaningful when ingestion lags,
+ * instead of silently returning zero rows once the data ages past the window.
+ * Falls back to Date.now() when the database is empty.
+ */
+function getReferenceTimestamp(db: Database.Database): number {
+  const row = db.prepare(`
+    SELECT MAX(timestamp) as maxTs FROM earthquakes
+    WHERE latitude >= ? AND latitude <= ?
+      AND longitude >= ? AND longitude <= ?
+  `).get(
+    PHILIPPINES_BOUNDS.minLat,
+    PHILIPPINES_BOUNDS.maxLat,
+    PHILIPPINES_BOUNDS.minLon,
+    PHILIPPINES_BOUNDS.maxLon
+  ) as { maxTs: number | null };
+  return row?.maxTs ?? Date.now();
+}
+
+/**
+ * Public accessor for the data reference time (timestamp, ms).
+ * Used by pages so the volcanic model analyses the same window the DB queries do.
+ */
+export function getDataReferenceTime(): number {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const ref = getReferenceTimestamp(db);
+    db.close();
+    return ref;
+  } catch (error) {
+    console.error('Reference time error:', error);
+    return Date.now();
+  }
+}
+
+/**
+ * Data freshness for UI indicators: how old the newest PHIVOLCS record is.
+ * The scraper runs roughly every 30 minutes, so anything older than ~2 days
+ * indicates a stalled pipeline and is flagged as stale.
+ */
+export function getDataFreshness(): {
+  latest: Date | null;
+  ageMs: number;
+  ageDays: number;
+  isStale: boolean;
+} {
+  const { lastUpdate } = getLastUpdateTime();
+  if (!lastUpdate) {
+    return { latest: null, ageMs: 0, ageDays: 0, isStale: false };
+  }
+  const ageMs = Date.now() - lastUpdate.getTime();
+  const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+  return {
+    latest: lastUpdate,
+    ageMs,
+    ageDays,
+    isStale: ageMs > 2 * 24 * 60 * 60 * 1000,
+  };
+}
+
+/**
  * Get Philippines earthquakes from local database
  */
 export function getPhilippinesEarthquakes(
@@ -58,7 +123,7 @@ export function getPhilippinesEarthquakes(
 ): ProcessedEarthquake[] {
   try {
     const db = new Database(DB_PATH, { readonly: true });
-    const cutoffTime = Date.now() - days * 24 * 60 * 60 * 1000;
+    const cutoffTime = getReferenceTimestamp(db) - days * 24 * 60 * 60 * 1000;
     
     const earthquakes = db.prepare(`
       SELECT * FROM earthquakes 
@@ -108,7 +173,7 @@ export function getPhilippinesEarthquakes(
 export function getPhilippinesStats(days: number = 7) {
   try {
     const db = new Database(DB_PATH, { readonly: true });
-    const cutoffTime = Date.now() - days * 24 * 60 * 60 * 1000;
+    const cutoffTime = getReferenceTimestamp(db) - days * 24 * 60 * 60 * 1000;
     
     const stats = db.prepare(`
       SELECT 
@@ -256,8 +321,10 @@ export function getTodayVsYesterday() {
   try {
     const db = new Database(DB_PATH, { readonly: true });
     
-    // Calculate time boundaries (midnight PHT = UTC+8)
-    const now = Date.now();
+    // Calculate time boundaries (midnight PHT = UTC+8).
+    // Anchored to the newest available record so "today/yesterday" stays
+    // meaningful even when the data snapshot lags wall-clock time.
+    const now = getReferenceTimestamp(db);
     const phtOffset = 8 * 60 * 60 * 1000; // 8 hours in ms
     const todayMidnight = new Date(now + phtOffset);
     todayMidnight.setUTCHours(0, 0, 0, 0);
