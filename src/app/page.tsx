@@ -143,7 +143,7 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white overflow-hidden">
         {/* Animated background */}
-        <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 opacity-[0.12]">
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }} />
@@ -157,7 +157,7 @@ export default async function HomePage() {
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 Live Global M1+ Monitoring
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight">
                 Every
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400">Tremor.</span>
@@ -173,7 +173,7 @@ export default async function HomePage() {
               <div className="mt-8 flex flex-wrap gap-4">
                 <Link
                   href="/near-me"
-                  className="px-6 py-3 bg-white text-gray-900 rounded-lg font-semibold hover:bg-cyan-300 transition-colors flex items-center gap-2 shadow-lg"
+                  className="px-6 py-3 bg-white text-gray-900 rounded-xl font-semibold hover:bg-cyan-200 transition-colors flex items-center gap-2 shadow-lg"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -183,7 +183,7 @@ export default async function HomePage() {
                 </Link>
                 <Link
                   href="/globe"
-                  className="px-6 py-3 bg-white/10 text-white rounded-lg font-semibold hover:bg-white/20 transition-colors border border-white/30 flex items-center gap-2 backdrop-blur-sm"
+                  className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-colors border border-white/20 flex items-center gap-2 backdrop-blur-sm"
                 >
                   <span>🌍</span>
                   View 3D Globe
