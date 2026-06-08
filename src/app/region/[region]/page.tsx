@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { philippineRegions, getCitiesByRegion, City } from "@/data/philippine-cities";
+import { seismicRegions, getCountriesInRegion } from "@/data/countries";
 import { getPhilippinesEarthquakes, ProcessedEarthquake as DBEarthquake } from "@/lib/db-queries";
 import { getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
 
@@ -33,25 +34,36 @@ function getRegionBySlug(slug: string) {
 }
 
 export async function generateStaticParams() {
-  return philippineRegions.map((region) => ({ region: region.slug }));
+  return [
+    ...philippineRegions.map((region) => ({ region: region.slug })),
+    ...seismicRegions.map((region) => ({ region: region.slug })),
+  ];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { region: regionSlug } = await params;
   const region = getRegionBySlug(regionSlug);
 
-  if (!region) {
-    return { title: "Region Not Found" };
+  if (region) {
+    return {
+      title: `${region.name} Earthquakes | Region ${region.code}`,
+      description: `Track earthquakes in ${region.name} (Region ${region.code}), Philippines. View recent seismic activity and earthquake history for all cities in the region.`,
+      openGraph: {
+        title: `${region.name} Earthquakes | QuakeGlobe`,
+        description: `Real-time earthquake tracking for ${region.name}, Philippines.`,
+      },
+    };
   }
 
-  return {
-    title: `${region.name} Earthquakes | Region ${region.code}`,
-    description: `Track earthquakes in ${region.name} (Region ${region.code}), Philippines. View recent seismic activity and earthquake history for all cities in the region.`,
-    openGraph: {
-      title: `${region.name} Earthquakes | QuakeGlobe`,
-      description: `Real-time earthquake tracking for ${region.name}, Philippines.`,
-    },
-  };
+  const seismic = seismicRegions.find((r) => r.slug === regionSlug);
+  if (seismic) {
+    return {
+      title: `${seismic.name} Earthquakes | Seismic Region`,
+      description: `Earthquake-prone countries in ${seismic.name}. Browse real-time seismic activity across ${seismic.countries.length} countries.`,
+    };
+  }
+
+  return { title: "Region Not Found" };
 }
 
 export const revalidate = 1800;
@@ -61,6 +73,11 @@ export default async function RegionPage({ params }: Props) {
   const region = getRegionBySlug(regionSlug);
 
   if (!region) {
+    // Not a Philippine region — it may be a global seismic region.
+    const seismic = seismicRegions.find((r) => r.slug === regionSlug);
+    if (seismic) {
+      return <SeismicRegionView region={seismic} />;
+    }
     notFound();
   }
 
@@ -281,6 +298,82 @@ export default async function RegionPage({ params }: Props) {
                   key={r.slug}
                   href={`/region/${r.slug}`}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-400 transition-colors text-sm"
+                >
+                  {r.name}
+                </Link>
+              ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Global seismic-region view (e.g. /region/asia-pacific) — a country directory.
+function SeismicRegionView({
+  region,
+}: {
+  region: { name: string; slug: string; countries: string[] };
+}) {
+  const countries = getCountriesInRegion(region.slug);
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <section className="bg-gradient-to-br from-red-700 to-orange-700 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex items-center gap-2 text-sm text-white/70 mb-4">
+            <Link href="/countries" className="hover:text-white">Countries</Link>
+            <span>/</span>
+            <span className="text-white">{region.name}</span>
+          </nav>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">{region.name}</h1>
+          <p className="text-lg text-white/80">
+            {countries.length} earthquake-prone {countries.length === 1 ? 'country' : 'countries'}
+          </p>
+        </div>
+      </section>
+
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+            Countries in {region.name}
+          </h2>
+
+          {countries.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {countries.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/country/${c.slug}`}
+                  className="group p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-red-300 dark:hover:border-red-700 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                      {c.name}
+                    </h3>
+                    <span className="text-gray-300 dark:text-gray-600 group-hover:text-red-500 transition-colors">→</span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Capital: {c.capital.name}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400">No country profiles available for this region yet.</p>
+          )}
+
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-12 mb-4">
+            Other Regions
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {seismicRegions
+              .filter((r) => r.slug !== region.slug)
+              .map((r) => (
+                <Link
+                  key={r.slug}
+                  href={`/region/${r.slug}`}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-400 transition-colors text-sm"
                 >
                   {r.name}
                 </Link>

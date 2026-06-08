@@ -39,7 +39,16 @@ export function EarthquakeList({
   userLocation,
   emptyMessage = "No earthquakes found.",
 }: EarthquakeListProps) {
-  if (earthquakes.length === 0) {
+  // De-duplicate by id — multi-source feeds (USGS/EMSC/JMA) can surface the same
+  // event twice, which renders a duplicate row and a React "same key" warning.
+  const seen = new Set<string>();
+  const items = earthquakes.filter((eq) => {
+    if (seen.has(eq.id)) return false;
+    seen.add(eq.id);
+    return true;
+  });
+
+  if (items.length === 0) {
     return (
       <div className="text-center py-12">
         <svg
@@ -63,7 +72,7 @@ export function EarthquakeList({
   if (compact) {
     return (
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
-        {earthquakes.map((eq) => (
+        {items.map((eq) => (
           <EarthquakeCardCompact key={eq.id} earthquake={eq} />
         ))}
       </div>
@@ -72,7 +81,7 @@ export function EarthquakeList({
 
   return (
     <div className="space-y-4">
-      {earthquakes.map((eq) => {
+      {items.map((eq) => {
         const distanceKm =
           showDistance && userLocation
             ? getDistanceFromLatLonInKm(

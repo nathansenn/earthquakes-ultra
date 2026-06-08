@@ -7,6 +7,7 @@ import {
   getNearbyCities,
   getDistanceFromLatLonInKm,
   getCitiesByRegion,
+  philippineRegions,
 } from "@/data/philippine-cities";
 import {
   ProcessedEarthquake,
@@ -180,7 +181,7 @@ export default async function CityPage({ params }: Props) {
           <nav className="flex items-center gap-2 text-sm text-purple-200 mb-4">
             <Link href="/philippines" className="hover:text-white transition-colors">Philippines</Link>
             <span>/</span>
-            <Link href={`/region/${city.regionCode.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-white transition-colors">
+            <Link href={`/region/${philippineRegions.find((r) => r.code === city.regionCode)?.slug ?? 'ncr'}`} className="hover:text-white transition-colors">
               {city.region}
             </Link>
             <span>/</span>

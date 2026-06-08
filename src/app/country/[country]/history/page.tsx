@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { REGIONS, getRegionInfo } from '@/lib/regional-api';
+import { getCountryBySlug } from '@/data/countries';
 import { 
   fetchUSGSHistorical, 
   getHistoricalEarthquakesForCountry, 
@@ -24,8 +24,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { country } = await params;
-  const region = getRegionInfo(country);
-  const name = region?.name || country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const countryData = getCountryBySlug(country);
+  const name = countryData?.name || country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return {
     title: `Historical Earthquakes & Volcanoes in ${name} | QuakeGlobe`,
@@ -38,9 +38,9 @@ export const revalidate = 86400; // Cache for 24 hours
 export default async function HistoryPage({ params, searchParams }: Props) {
   const { country } = await params;
   const sp = await searchParams;
-  const region = getRegionInfo(country);
+  const countryData = getCountryBySlug(country);
 
-  if (!region) {
+  if (!countryData) {
     notFound();
   }
 
@@ -52,12 +52,12 @@ export default async function HistoryPage({ params, searchParams }: Props) {
   
   // Fetch historical data
   const [usgsHistorical] = await Promise.all([
-    fetchUSGSHistorical(region.bounds, minMag, minYear)
+    fetchUSGSHistorical(countryData.bounds, minMag, minYear)
   ]);
   
   // Get curated significant events
-  const significantEarthquakes = getHistoricalEarthquakesForCountry(region.name);
-  const volcanicEvents = getHistoricalVolcanicEventsForCountry(region.name);
+  const significantEarthquakes = getHistoricalEarthquakesForCountry(countryData.name);
+  const volcanicEvents = getHistoricalVolcanicEventsForCountry(countryData.name);
   
   // Filter by year range
   const filteredUSGS = usgsHistorical.filter(eq => eq.year >= minYear && eq.year <= maxYear);
@@ -81,14 +81,14 @@ export default async function HistoryPage({ params, searchParams }: Props) {
   allEarthquakes.sort((a, b) => b.magnitude - a.magnitude);
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-600 to-orange-700 text-white">
         <div className="max-w-7xl mx-auto px-4 py-12">
           <nav className="text-sm mb-4">
             <Link href="/" className="hover:underline">Home</Link>
             <span className="mx-2">›</span>
-            <Link href={`/country/${country}`} className="hover:underline">{region.name}</Link>
+            <Link href={`/country/${country}`} className="hover:underline">{countryData.name}</Link>
             <span className="mx-2">›</span>
             <span>Historical Data</span>
           </nav>
@@ -97,21 +97,21 @@ export default async function HistoryPage({ params, searchParams }: Props) {
             📜 Historical Earthquakes & Volcanoes
           </h1>
           <p className="text-xl text-amber-100">
-            {region.name} • {minYear} - {maxYear}
+            {countryData.name} • {minYear} - {maxYear}
           </p>
         </div>
       </div>
       
       {/* Filters */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <form className="flex flex-wrap gap-4 items-center">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Min Magnitude</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Magnitude</label>
               <select 
                 name="minMag" 
                 defaultValue={minMag}
-                className="border rounded px-3 py-2"
+                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2"
               >
                 <option value="5">M5.0+</option>
                 <option value="6">M6.0+</option>
@@ -121,11 +121,11 @@ export default async function HistoryPage({ params, searchParams }: Props) {
             </div>
             
             <div>
-              <label className="block text-xs text-gray-500 mb-1">From Year</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From Year</label>
               <select 
                 name="minYear" 
                 defaultValue={minYear}
-                className="border rounded px-3 py-2"
+                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2"
               >
                 <option value="1900">1900</option>
                 <option value="1950">1950</option>
@@ -137,11 +137,11 @@ export default async function HistoryPage({ params, searchParams }: Props) {
             </div>
             
             <div>
-              <label className="block text-xs text-gray-500 mb-1">To Year</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To Year</label>
               <select 
                 name="maxYear" 
                 defaultValue={maxYear}
-                className="border rounded px-3 py-2"
+                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2"
               >
                 <option value="2026">2026</option>
                 <option value="2020">2020</option>
@@ -152,11 +152,11 @@ export default async function HistoryPage({ params, searchParams }: Props) {
             </div>
             
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Event Type</label>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Event Type</label>
               <select 
                 name="type" 
                 defaultValue={eventType}
-                className="border rounded px-3 py-2"
+                className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2"
               >
                 <option value="all">All Events</option>
                 <option value="earthquake">Earthquakes Only</option>
@@ -179,25 +179,25 @@ export default async function HistoryPage({ params, searchParams }: Props) {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-4 shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
             <div className="text-3xl font-bold text-amber-600">{allEarthquakes.length}</div>
-            <div className="text-sm text-gray-500">Total Earthquakes</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total Earthquakes</div>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
             <div className="text-3xl font-bold text-red-600">
               {allEarthquakes.filter(eq => eq.magnitude >= 7).length}
             </div>
-            <div className="text-sm text-gray-500">M7+ Events</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">M7+ Events</div>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
             <div className="text-3xl font-bold text-orange-600">{filteredVolcanic.length}</div>
-            <div className="text-sm text-gray-500">Volcanic Events</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Volcanic Events</div>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow">
-            <div className="text-3xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               {allEarthquakes.filter(eq => eq.tsunami).length}
             </div>
-            <div className="text-sm text-gray-500">Tsunami Events</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Tsunami Events</div>
           </div>
         </div>
         
@@ -206,7 +206,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               ⚡ Notable Historical Earthquakes
-              <span className="text-sm font-normal text-gray-500">
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
                 (Curated with detailed information)
               </span>
             </h2>
@@ -239,14 +239,14 @@ export default async function HistoryPage({ params, searchParams }: Props) {
           <section>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               📊 Complete Earthquake Record
-              <span className="text-sm font-normal text-gray-500">
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
                 (M{minMag}+ from USGS database)
               </span>
             </h2>
             
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
               <table className="w-full min-w-[640px]">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Magnitude</th>
@@ -255,9 +255,9 @@ export default async function HistoryPage({ params, searchParams }: Props) {
                     <th className="px-4 py-3 text-left text-sm font-semibold">Source</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y dark:divide-gray-700">
                   {allEarthquakes.slice(0, 100).map((eq, i) => (
-                    <tr key={eq.id || i} className="hover:bg-gray-50">
+                    <tr key={eq.id || i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-3 text-sm">{eq.date}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center justify-center w-12 h-8 rounded text-white font-bold text-sm ${
@@ -273,7 +273,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
                         {eq.location}
                         {eq.tsunami && <span className="ml-2 text-blue-500">🌊</span>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                         {eq.depth ? `${eq.depth.toFixed(0)} km` : '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">
@@ -282,7 +282,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
                             href={eq.sources[0].url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
                           >
                             {eq.sources[0].name}
                           </a>
@@ -294,7 +294,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
               </table>
               
               {allEarthquakes.length > 100 && (
-                <div className="p-4 bg-gray-50 text-center text-sm text-gray-500">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 text-center text-sm text-gray-500 dark:text-gray-400">
                   Showing 100 of {allEarthquakes.length} earthquakes
                 </div>
               )}
@@ -303,24 +303,24 @@ export default async function HistoryPage({ params, searchParams }: Props) {
         )}
         
         {/* Data Sources */}
-        <section className="mt-12 p-6 bg-blue-50 rounded-lg">
+        <section className="mt-12 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <h3 className="font-bold text-lg mb-3">📚 Data Sources</h3>
           <ul className="space-y-2 text-sm">
             <li>
               <strong>USGS Earthquake Hazards Program</strong> - 
-              <a href="https://earthquake.usgs.gov/" className="text-blue-600 ml-1" target="_blank" rel="noopener noreferrer">
+              <a href="https://earthquake.usgs.gov/" className="text-blue-600 dark:text-blue-400 ml-1" target="_blank" rel="noopener noreferrer">
                 earthquake.usgs.gov
               </a>
             </li>
             <li>
               <strong>EMSC (European-Mediterranean Seismological Centre)</strong> - 
-              <a href="https://www.emsc-csem.org/" className="text-blue-600 ml-1" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.emsc-csem.org/" className="text-blue-600 dark:text-blue-400 ml-1" target="_blank" rel="noopener noreferrer">
                 emsc-csem.org
               </a>
             </li>
             <li>
               <strong>NOAA National Centers for Environmental Information</strong> - 
-              <a href="https://www.ngdc.noaa.gov/hazard/" className="text-blue-600 ml-1" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.ngdc.noaa.gov/hazard/" className="text-blue-600 dark:text-blue-400 ml-1" target="_blank" rel="noopener noreferrer">
                 ngdc.noaa.gov
               </a>
             </li>
@@ -337,7 +337,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
 // Significant Earthquake Card Component
 function SignificantEarthquakeCard({ earthquake }: { earthquake: HistoricalEarthquake }) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       <div className="flex">
         <div className={`w-24 flex items-center justify-center text-white font-bold text-2xl ${
           earthquake.magnitude >= 8 ? 'bg-purple-600' :
@@ -352,7 +352,7 @@ function SignificantEarthquakeCard({ earthquake }: { earthquake: HistoricalEarth
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-bold text-lg">{earthquake.location}</h3>
-              <p className="text-gray-500">{earthquake.date}</p>
+              <p className="text-gray-500 dark:text-gray-400">{earthquake.date}</p>
             </div>
             <div className="flex gap-2">
               {earthquake.tsunami && (
@@ -368,23 +368,23 @@ function SignificantEarthquakeCard({ earthquake }: { earthquake: HistoricalEarth
             </div>
           </div>
           
-          <p className="mt-2 text-gray-700">{earthquake.description}</p>
+          <p className="mt-2 text-gray-700 dark:text-gray-300">{earthquake.description}</p>
           
-          <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500">
+          <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
             {earthquake.depth && <span>📍 Depth: {earthquake.depth} km</span>}
             {earthquake.deaths && <span>💔 Deaths: {earthquake.deaths.toLocaleString()}</span>}
             {earthquake.damage && <span>💰 Damage: {earthquake.damage}</span>}
           </div>
           
-          <div className="mt-3 pt-3 border-t flex flex-wrap gap-2">
-            <span className="text-xs text-gray-500">Sources:</span>
+          <div className="mt-3 pt-3 border-t dark:border-gray-700 flex flex-wrap gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Sources:</span>
             {earthquake.sources.map((source, i) => (
               <a
                 key={i}
                 href={source.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:underline"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
               >
                 {source.name}
               </a>
@@ -399,7 +399,7 @@ function SignificantEarthquakeCard({ earthquake }: { earthquake: HistoricalEarth
 // Volcanic Event Card Component
 function VolcanicEventCard({ event }: { event: HistoricalVolcanicEvent }) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       <div className="flex">
         <div className="w-24 flex flex-col items-center justify-center bg-orange-600 text-white p-2">
           <span className="text-2xl">🌋</span>
@@ -412,7 +412,7 @@ function VolcanicEventCard({ event }: { event: HistoricalVolcanicEvent }) {
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-bold text-lg">{event.volcano}</h3>
-              <p className="text-gray-500">{event.date}</p>
+              <p className="text-gray-500 dark:text-gray-400">{event.date}</p>
             </div>
             {event.deaths && event.deaths > 0 && (
               <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
@@ -421,17 +421,17 @@ function VolcanicEventCard({ event }: { event: HistoricalVolcanicEvent }) {
             )}
           </div>
           
-          <p className="mt-2 text-gray-700">{event.description}</p>
+          <p className="mt-2 text-gray-700 dark:text-gray-300">{event.description}</p>
           
-          <div className="mt-3 pt-3 border-t flex flex-wrap gap-2">
-            <span className="text-xs text-gray-500">Sources:</span>
+          <div className="mt-3 pt-3 border-t dark:border-gray-700 flex flex-wrap gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Sources:</span>
             {event.sources.map((source, i) => (
               <a
                 key={i}
                 href={source.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:underline"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
               >
                 {source.name}
               </a>
