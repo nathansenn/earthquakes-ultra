@@ -30,6 +30,14 @@
 // ============================================================================
 
 import { Volcano } from '@/data/philippine-volcanoes';
+import {
+  poissonProbability,
+  philippineBaseAnnualRate,
+  alertLevelRateFactor,
+  alertLevelFloors,
+  estimateMc,
+  riskLevelFromProbability,
+} from '@/lib/eruption-forecast';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -81,6 +89,7 @@ export interface BValueAnalysis {
   aValue: number;               // Productivity parameter
   standardError: number;
   sampleSize: number;
+  mc: number;                   // Magnitude of completeness used (Wiemer & Wyss)
   interpretation: string;
   anomaly: 'low' | 'normal' | 'high';
   // Low b-value (<0.7) suggests high stress / large event potential
@@ -130,7 +139,7 @@ export interface RiskAssessment {
   
   // Factor breakdown
   factors: {
-    baseline: number;
+    baseline: number;             // baseline eruptions per year (per-volcano)
     triggeringMultiplier: number;
     depthMigrationMultiplier: number;
     bValueMultiplier: number;
@@ -138,7 +147,9 @@ export interface RiskAssessment {
     clusterMultiplier: number;
     hydrothermalMultiplier: number;
     recentActivityMultiplier: number;
-    combinedMultiplier: number;
+    alertMultiplier: number;      // PHIVOLCS alert-level rate factor
+    combinedMultiplier: number;   // product of seismic precursor multipliers
+    effectiveAnnualRate: number;  // λ used in the Poisson model
   };
   
   // Statistics
@@ -209,13 +220,9 @@ const TRIGGERING_PARAMS = {
   },
 };
 
-// Base eruption rates by volcano type (from GVP global statistics)
-const BASE_ERUPTION_RATES: Record<string, number> = {
-  // Eruptions per year (averaged from GVP Holocene data)
-  'active': 0.10,           // Active with recent eruptions: ~1 per 10 years
-  'potentially_active': 0.02, // Holocene activity but no historical: ~1 per 50 years
-  'dormant': 0.005,         // Long dormancy: ~1 per 200 years
-};
+// Per-volcano baseline eruption rates are now derived from GVP eruption history
+// (see philippineBaseAnnualRate in @/lib/eruption-forecast), replacing the old
+// coarse status buckets.
 
 // Depth migration thresholds (Roman & Cashman, 2006)
 const DEPTH_MIGRATION = {
@@ -232,16 +239,8 @@ const B_VALUE = {
   highStress: 0.7,            // < this suggests stress accumulation
 };
 
-// Risk level thresholds (1-year probability)
-const RISK_THRESHOLDS = {
-  CRITICAL: 0.50,
-  VERY_HIGH: 0.35,
-  HIGH: 0.20,
-  ELEVATED: 0.10,
-  MODERATE: 0.05,
-  LOW: 0.02,
-  BACKGROUND: 0,
-};
+// Risk-level thresholds (1-year probability) live in @/lib/eruption-forecast
+// (riskLevelFromProbability), shared with the global baseline model.
 
 // ============================================================================
 // MATHEMATICAL FUNCTIONS
@@ -411,35 +410,40 @@ export function analyzeDepthMigration(
  */
 export function analyzeBValue(
   earthquakes: Earthquake[],
-  minMagnitude: number = 2.0  // Completeness magnitude
+  minMagnitude: number = 1.0  // floor for the completeness magnitude
 ): BValueAnalysis {
+  // Data-driven magnitude of completeness (Wiemer & Wyss 2000, maximum
+  // curvature), floored at minMagnitude — replaces the previous fixed Mc=2.0.
+  const allMags = earthquakes.map(eq => eq.magnitude);
+  const mc = Math.max(estimateMc(allMags, 0.1, minMagnitude), minMagnitude);
+
   // Filter to events above completeness magnitude
-  const mags = earthquakes
-    .map(eq => eq.magnitude)
-    .filter(m => m >= minMagnitude)
+  const mags = allMags
+    .filter(m => m >= mc)
     .sort((a, b) => a - b);
-  
+
   if (mags.length < 20) {
     return {
       bValue: 1.0,
       aValue: 0,
       standardError: 0,
       sampleSize: mags.length,
+      mc,
       interpretation: 'Insufficient data for reliable b-value estimate',
       anomaly: 'normal',
     };
   }
-  
-  // Maximum likelihood estimator (Aki, 1965)
+
+  // Maximum likelihood estimator (Aki, 1965), using the estimated Mc
   const meanMag = mags.reduce((a, b) => a + b, 0) / mags.length;
-  const bValue = Math.log10(Math.E) / (meanMag - (minMagnitude - 0.05));
-  
+  const bValue = Math.log10(Math.E) / (meanMag - (mc - 0.05));
+
   // Standard error (Shi & Bolt, 1982)
   const standardError = bValue / Math.sqrt(mags.length);
-  
+
   // a-value (productivity)
-  const aValue = Math.log10(mags.length) + bValue * minMagnitude;
-  
+  const aValue = Math.log10(mags.length) + bValue * mc;
+
   // Interpretation
   let interpretation: string;
   let anomaly: 'low' | 'normal' | 'high';
@@ -460,6 +464,7 @@ export function analyzeBValue(
     aValue: Math.round(aValue * 100) / 100,
     standardError: Math.round(standardError * 1000) / 1000,
     sampleSize: mags.length,
+    mc,
     interpretation,
     anomaly,
   };
@@ -1105,8 +1110,10 @@ export function assessVolcanoRisk(
     energyRelease30Day: local30.reduce((sum, eq) => sum + seismicEnergy(eq.magnitude), 0),
   };
   
-  // Calculate multipliers
-  const baseline = BASE_ERUPTION_RATES[volcano.status] ?? 0.05;
+  // Per-volcano baseline eruption rate (eruptions/yr) from GVP history
+  const baseline = philippineBaseAnnualRate(volcano);
+
+  // Seismic precursor multipliers
   const triggeringMultiplier = calculateTriggeringMultiplier(triggeringAnalysis);
   const depthMigrationMultiplier = calculateDepthMigrationMultiplier(depthMigration);
   const bValueMultiplier = calculateBValueMultiplier(bValueAnalysis);
@@ -1114,8 +1121,8 @@ export function assessVolcanoRisk(
   const clusterMultiplier = calculateClusterMultiplier(clusters);
   const hydrothermalMultiplier = calculateHydrothermalMultiplier(volcano.hydrothermalActivity);
   const recentActivityMultiplier = calculateRecentActivityMultiplier(volcano, enrichedEarthquakes, now);
-  
-  // Combined multiplier (multiplicative with diminishing returns)
+
+  // Product of seismic precursor multipliers (capped to avoid runaway products)
   const rawMultiplier = triggeringMultiplier *
                         depthMigrationMultiplier *
                         bValueMultiplier *
@@ -1123,24 +1130,24 @@ export function assessVolcanoRisk(
                         clusterMultiplier *
                         hydrothermalMultiplier *
                         recentActivityMultiplier;
-  
-  // Apply diminishing returns for extreme values
-  const combinedMultiplier = Math.min(rawMultiplier, 10); // Cap at 10x
-  
-  // Calculate probabilities
-  const probability1Year = Math.min(baseline * combinedMultiplier, 0.65); // Cap at 65%
-  const probability30Day = Math.min(probability1Year / 12, 0.20); // Monthly rate, cap at 20%
-  
-  // Determine risk level
-  let riskLevel: RiskAssessment['riskLevel'];
-  if (probability1Year >= RISK_THRESHOLDS.CRITICAL) riskLevel = 'CRITICAL';
-  else if (probability1Year >= RISK_THRESHOLDS.VERY_HIGH) riskLevel = 'VERY_HIGH';
-  else if (probability1Year >= RISK_THRESHOLDS.HIGH) riskLevel = 'HIGH';
-  else if (probability1Year >= RISK_THRESHOLDS.ELEVATED) riskLevel = 'ELEVATED';
-  else if (probability1Year >= RISK_THRESHOLDS.MODERATE) riskLevel = 'MODERATE';
-  else if (probability1Year >= RISK_THRESHOLDS.LOW) riskLevel = 'LOW';
-  else riskLevel = 'BACKGROUND';
-  
+  const combinedMultiplier = Math.min(rawMultiplier, 10);
+
+  // Official PHIVOLCS alert level — the dominant near-term unrest signal.
+  const alertMultiplier = alertLevelRateFactor(volcano.alertLevel);
+
+  // Poisson event model: P(>=1 eruption in t) = 1 - exp(-lambda*t)
+  const effectiveAnnualRate = baseline * combinedMultiplier * alertMultiplier;
+  const modelP1Year = poissonProbability(effectiveAnnualRate, 1);
+  const modelP30Day = poissonProbability(effectiveAnnualRate, 30 / 365.25);
+
+  // Alert-level probability floors encode PHIVOLCS's expert near-term judgement
+  // (e.g. AL3 = hazardous eruption possible within weeks).
+  const floors = alertLevelFloors(volcano.alertLevel);
+  const probability1Year = Math.max(modelP1Year, floors.p1y);
+  const probability30Day = Math.max(modelP30Day, floors.p30);
+
+  const riskLevel = riskLevelFromProbability(probability1Year) as RiskAssessment['riskLevel'];
+
   // Determine confidence based on data quality
   let confidence: RiskAssessment['confidence'];
   if (volcano.monitoringStations >= 10 && localEvents.length >= 50) {
@@ -1154,7 +1161,7 @@ export function assessVolcanoRisk(
   }
   
   const factors = {
-    baseline,
+    baseline: Math.round(baseline * 10000) / 10000,
     triggeringMultiplier: Math.round(triggeringMultiplier * 1000) / 1000,
     depthMigrationMultiplier: Math.round(depthMigrationMultiplier * 1000) / 1000,
     bValueMultiplier: Math.round(bValueMultiplier * 1000) / 1000,
@@ -1162,7 +1169,9 @@ export function assessVolcanoRisk(
     clusterMultiplier: Math.round(clusterMultiplier * 1000) / 1000,
     hydrothermalMultiplier,
     recentActivityMultiplier: Math.round(recentActivityMultiplier * 1000) / 1000,
+    alertMultiplier,
     combinedMultiplier: Math.round(combinedMultiplier * 100) / 100,
+    effectiveAnnualRate: Math.round(effectiveAnnualRate * 10000) / 10000,
   };
   
   // Build scientific notes

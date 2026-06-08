@@ -5,6 +5,7 @@ import { GLOBAL_VOLCANOES, GlobalVolcano } from "@/data/global-volcanoes";
 import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } from "@/lib/db-queries";
 import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
+import { assessGlobalVolcano } from "@/lib/eruption-forecast";
 import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
 
 export const metadata: Metadata = {
@@ -134,10 +135,12 @@ export default async function VolcanoAnalysisPage() {
           <div className="flex items-start gap-3">
             <span className="text-xl">🧠</span>
             <div className="text-sm text-indigo-800 dark:text-indigo-200">
-              <strong>AI Analysis Methodology:</strong> This system correlates real-time USGS seismic data with volcanic centers using 
-              peer-reviewed models (Nishimura 2017, Jenkins 2024). Analysis includes earthquake frequency, depth migration patterns, 
-              swarm detection, and historical eruption correlation. <strong>Not a deterministic prediction</strong> — probabilities 
-              represent elevated risk over extended timeframes.
+              <strong>Methodology:</strong> Each Philippine volcano starts from a per-volcano baseline
+              eruption rate (Smithsonian GVP eruption history), modulated by its official PHIVOLCS alert
+              level and live PHIVOLCS/USGS seismicity — earthquake triggering (Nishimura 2017; Jenkins 2024),
+              depth migration, b-value, accelerating seismicity and swarms — then converted to a probability
+              with a Poisson event model. <strong>Not a deterministic prediction</strong>; probabilities are
+              statistical estimates. PHIVOLCS remains the authoritative source.
             </div>
           </div>
         </div>
@@ -364,12 +367,17 @@ export default async function VolcanoAnalysisPage() {
                       {volcano.country} • {volcano.subregion}
                     </p>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    volcano.status === 'active' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 
-                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                  }`}>
-                    {volcano.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      volcano.status === 'active' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                    }`}>
+                      {volcano.status}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300" title="Modeled 1-year eruption probability (baseline)">
+                      {assessGlobalVolcano(volcano).probability1Year}% / yr
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
@@ -550,23 +558,27 @@ export default async function VolcanoAnalysisPage() {
               <ul className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>USGS Earthquake Catalog:</strong> Real-time global seismic data</div>
+                  <div><strong>Smithsonian GVP:</strong> per-volcano eruption histories &rarr; baseline rates</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Smithsonian GVP:</strong> Global Volcanism Program database</div>
+                  <div><strong>PHIVOLCS:</strong> official alert levels + live M1+ seismicity</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Nishimura (2017):</strong> Large earthquake triggering model</div>
+                  <div><strong>Nishimura (2017), <em>GRL</em> 44:</strong> M&ge;7.5 within 200 km &rarr; ~50% higher eruption probability for 5 yr</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Jenkins et al. (2024):</strong> Statistical triggering analysis</div>
+                  <div><strong>Jenkins et al. (2024), <em>Volcanica</em>:</strong> M&ge;7 within 750 km &rarr; ~1.25&times; eruption rate (1&ndash;4 yr)</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>PHIVOLCS:</strong> Philippine Institute of Volcanology</div>
+                  <div><strong>Aki (1965) / Wiemer &amp; Wyss (2000):</strong> b-value with data-driven completeness magnitude</div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">✓</span>
+                  <div><strong>Poisson event model</strong> (Bebbington; Marzocchi &amp; Bebbington 2012): rate &rarr; probability</div>
                 </li>
               </ul>
             </div>
