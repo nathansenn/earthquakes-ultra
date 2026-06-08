@@ -184,7 +184,7 @@ export default function GlobalVolcanoesPage() {
             {recentEruptions.length} volcanoes have erupted in the past 5 years
           </p>
           
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {recentEruptions.slice(0, 12).map((volcano) => (
               <VolcanoCard key={volcano.id} volcano={volcano} />
             ))}
@@ -210,7 +210,7 @@ export default function GlobalVolcanoesPage() {
             Volcanoes with the most people living nearby (weighted by distance)
           </p>
           
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {highRisk.slice(0, 12).map((volcano, index) => (
               <div key={volcano.id} className="relative">
                 <span className="absolute -top-2 -left-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold z-10">
@@ -235,7 +235,7 @@ export default function GlobalVolcanoesPage() {
             Philippine dashboard for seismically-informed assessments).
           </p>
 
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {byProbability.map(({ volcano, assessment }) => (
               <Link
                 key={volcano.id}
@@ -313,7 +313,7 @@ export default function GlobalVolcanoesPage() {
                   </span>
                 </h3>
                 
-                <div className="grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {regionVolcanoes.slice(0, 10).map((volcano) => (
                     <Link
                       key={volcano.id}

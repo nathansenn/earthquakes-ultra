@@ -262,7 +262,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
       {/* Main Content */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
               {/* Key Stats */}
@@ -314,7 +314,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     🇵🇭 PHIVOLCS Monitoring Data
                   </h2>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600 dark:text-gray-400">Alert Level</span>
@@ -472,7 +472,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Location
                 </h2>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Coordinates</p>
                     <p className="font-mono text-gray-900 dark:text-white">

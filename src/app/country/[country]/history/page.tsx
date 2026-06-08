@@ -13,19 +13,20 @@ import {
 } from '@/lib/historical-api';
 
 interface Props {
-  params: { country: string };
-  searchParams: { 
+  params: Promise<{ country: string }>;
+  searchParams: Promise<{
     minMag?: string;
     minYear?: string;
     maxYear?: string;
     type?: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const region = getRegionInfo(params.country);
-  const name = region?.name || params.country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  
+  const { country } = await params;
+  const region = getRegionInfo(country);
+  const name = region?.name || country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
   return {
     title: `Historical Earthquakes & Volcanoes in ${name} | QuakeGlobe`,
     description: `Explore the seismic history of ${name}. Major earthquakes, volcanic eruptions, and geological events with sources and detailed information.`,
@@ -35,17 +36,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export const revalidate = 86400; // Cache for 24 hours
 
 export default async function HistoryPage({ params, searchParams }: Props) {
-  const region = getRegionInfo(params.country);
-  
+  const { country } = await params;
+  const sp = await searchParams;
+  const region = getRegionInfo(country);
+
   if (!region) {
     notFound();
   }
-  
+
   // Parse filters
-  const minMag = parseFloat(searchParams.minMag || '5');
-  const minYear = parseInt(searchParams.minYear || '1900');
-  const maxYear = parseInt(searchParams.maxYear || new Date().getFullYear().toString());
-  const eventType = searchParams.type || 'all';
+  const minMag = parseFloat(sp.minMag || '5');
+  const minYear = parseInt(sp.minYear || '1900');
+  const maxYear = parseInt(sp.maxYear || new Date().getFullYear().toString());
+  const eventType = sp.type || 'all';
   
   // Fetch historical data
   const [usgsHistorical] = await Promise.all([
@@ -85,7 +88,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
           <nav className="text-sm mb-4">
             <Link href="/" className="hover:underline">Home</Link>
             <span className="mx-2">›</span>
-            <Link href={`/country/${params.country}`} className="hover:underline">{region.name}</Link>
+            <Link href={`/country/${country}`} className="hover:underline">{region.name}</Link>
             <span className="mx-2">›</span>
             <span>Historical Data</span>
           </nav>
@@ -241,8 +244,8 @@ export default async function HistoryPage({ params, searchParams }: Props) {
               </span>
             </h2>
             
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded-lg shadow overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>

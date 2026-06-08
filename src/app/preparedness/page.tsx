@@ -87,7 +87,7 @@ export default function PreparednessPage() {
             <p className="text-red-100 text-lg">The most important 3 actions during an earthquake. Practice these until they become automatic.</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {EARTHQUAKE_RESPONSE.during.indoors.steps.map((step, index) => (
               <div key={step.action} className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center border-2 border-white/20">
                 <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -116,7 +116,7 @@ export default function PreparednessPage() {
           <h2 className="text-2xl font-bold mb-6 text-center">
             ❌ Common Myths & Dangerous Mistakes
           </h2>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {EARTHQUAKE_RESPONSE.during.indoors.doNots.map((item, index) => (
               <div key={index} className="flex items-start gap-3 bg-red-900/30 rounded-xl p-4 border border-red-800/50">
                 <span className="text-red-400 text-xl flex-shrink-0">✕</span>
@@ -145,7 +145,7 @@ export default function PreparednessPage() {
             </h3>
             <p className="text-blue-800 dark:text-blue-300 mb-6">{EARTHQUAKE_SCIENCE.philippineTectonics.content}</p>
             
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-3">Tectonic Plates</h4>
                 <div className="space-y-2">
@@ -172,7 +172,7 @@ export default function PreparednessPage() {
           </div>
 
           {/* Magnitude vs Intensity */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Magnitude */}
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-orange-900 dark:text-orange-200 mb-2">
@@ -222,7 +222,7 @@ export default function PreparednessPage() {
               {EARTHQUAKE_SCIENCE.depthMatters.title}
             </h3>
             <p className="text-green-800 dark:text-green-300 mb-4">{EARTHQUAKE_SCIENCE.depthMatters.content}</p>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {EARTHQUAKE_SCIENCE.depthMatters.categories.map((cat) => (
                 <div key={cat.name} className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -258,7 +258,7 @@ export default function PreparednessPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Home Safety */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -303,7 +303,7 @@ export default function PreparednessPage() {
           {/* Building Type Risk */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">{BUILDING_SAFETY.buildingTypes.title}</h3>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {BUILDING_SAFETY.buildingTypes.types.map((type) => (
                 <div key={type.type} className={`rounded-lg p-4 ${
                   type.risk === 'LOW' ? 'bg-green-50 dark:bg-green-900/20' :
@@ -335,7 +335,7 @@ export default function PreparednessPage() {
             <h3 className="font-semibold text-indigo-900 dark:text-indigo-200 mb-4 flex items-center gap-2">
               👨‍👩‍👧‍👦 Family Earthquake Plan Template
             </h3>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="font-medium text-indigo-800 dark:text-indigo-300 mb-2">Meeting Points</h4>
                 <ul className="space-y-2 text-sm text-indigo-700 dark:text-indigo-300">
@@ -373,7 +373,7 @@ export default function PreparednessPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-2">{EMERGENCY_KIT.description}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {EMERGENCY_KIT.categories.map((category) => (
               <div key={category.name} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="bg-gradient-to-r from-yellow-400 to-orange-400 px-4 py-3">
@@ -427,7 +427,7 @@ export default function PreparednessPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Indoors */}
             <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
               <h3 className="font-bold text-green-900 dark:text-green-200 mb-4">{EARTHQUAKE_RESPONSE.during.indoors.title}</h3>
@@ -533,7 +533,7 @@ export default function PreparednessPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Immediate Actions */}
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{EARTHQUAKE_RESPONSE.after.immediate.title}</h3>
@@ -574,7 +574,7 @@ export default function PreparednessPage() {
           {/* Returning Home Checks */}
           <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h3 className="font-bold text-gray-900 dark:text-white mb-4">{EARTHQUAKE_RESPONSE.after.returning.title}</h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {EARTHQUAKE_RESPONSE.after.returning.checks.map((check) => (
                 <div key={check.item} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                   <p className="font-medium text-gray-900 dark:text-white">{check.item}</p>
@@ -597,7 +597,7 @@ export default function PreparednessPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-2">{AFTERSHOCK_INFO.definition}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-6">
               <h3 className="font-bold text-purple-900 dark:text-purple-200 mb-3">{AFTERSHOCK_INFO.bathLaw.title}</h3>
               <p className="text-purple-800 dark:text-purple-300 text-sm mb-2">{AFTERSHOCK_INFO.bathLaw.description}</p>
@@ -631,7 +631,7 @@ export default function PreparednessPage() {
             <p className="text-cyan-100 mt-2">{TSUNAMI_INFO.definition}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/10 rounded-xl p-6">
               <h3 className="font-bold mb-3">Natural Warning Signs</h3>
               <ul className="space-y-2">
@@ -676,7 +676,7 @@ export default function PreparednessPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-2">{LIQUEFACTION_INFO.definition}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="font-bold text-gray-900 dark:text-white mb-3">Risk Factors</h3>
               <ul className="space-y-2">
@@ -737,7 +737,7 @@ export default function PreparednessPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold mb-8 text-center">🚨 Emergency Hotlines (Philippines)</h2>
           
-          <div className="grid md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {NATIONAL_EMERGENCY_CONTACTS.national.slice(0, 4).map((contact) => (
               <div key={contact.number} className="bg-white/10 rounded-xl p-4 text-center">
                 <p className="text-sm text-red-100">{contact.name}</p>
@@ -748,7 +748,7 @@ export default function PreparednessPage() {
 
           <div className="bg-white/10 rounded-xl p-6">
             <h3 className="font-semibold mb-4">More Emergency Contacts</h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {NATIONAL_EMERGENCY_CONTACTS.national.slice(4).map((contact) => (
                 <div key={contact.number} className="flex justify-between items-center">
                   <div>

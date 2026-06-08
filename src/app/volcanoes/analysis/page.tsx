@@ -291,7 +291,7 @@ export default async function VolcanoAnalysisPage() {
               Tap a card to drill in.
             </p>
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {activeRisk.map((assessment, i) => (
                 <RiskCard
                   key={assessment.volcano.id}
@@ -344,7 +344,7 @@ export default async function VolcanoAnalysisPage() {
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {highRiskGlobal.map((volcano) => (
               <div key={volcano.id} className="rounded-xl p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
@@ -419,7 +419,7 @@ export default async function VolcanoAnalysisPage() {
           <h2 className="text-2xl font-bold mb-2 text-center">🛰️ Real-Time Monitoring Resources</h2>
           <p className="text-center text-indigo-200 mb-8">Live satellite imagery and official volcanic monitoring</p>
           
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <a
               href="https://zoom.earth/#view=12.5,122,5z/layers=fires"
               target="_blank"
@@ -465,7 +465,7 @@ export default async function VolcanoAnalysisPage() {
             </a>
           </div>
           
-          <div className="grid sm:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             <a
               href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@122,12.5,6z"
               target="_blank"
@@ -509,7 +509,7 @@ export default async function VolcanoAnalysisPage() {
             📚 Scientific Methodology
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">
                 Risk Factors Analyzed

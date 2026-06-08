@@ -234,7 +234,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
                     ({subVolcanoes.length} volcanoes)
                   </span>
                 </h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {subVolcanoes.map((volcano) => (
                     <VolcanoCard key={volcano.id} volcano={volcano} />
                   ))}
@@ -243,7 +243,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
             ))
           ) : (
             // Single region - just list all
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {volcanoes.map((volcano) => (
                 <VolcanoCard key={volcano.id} volcano={volcano} />
               ))}
