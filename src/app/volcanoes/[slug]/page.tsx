@@ -7,9 +7,10 @@ import {
   countryToSlug,
   GlobalVolcano,
 } from "@/data/global-volcanoes";
-import { PHILIPPINE_VOLCANOES, Volcano as PhVolcano } from "@/data/philippine-volcanoes";
-import { getPhilippinesEarthquakes } from "@/lib/db-queries";
+import { PHILIPPINE_VOLCANOES, Volcano as PhVolcano, volcanoNameToSlug } from "@/data/philippine-volcanoes";
+import { getPhilippinesEarthquakes, getDataFreshness } from "@/lib/db-queries";
 import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
+import { DataFreshness } from "@/components/ui/DataFreshness";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -44,15 +45,10 @@ interface UnifiedVolcano {
   isPhilippine: boolean;
 }
 
-// Convert slug to standard format
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
 // Find volcano by slug from both databases
 function getVolcanoBySlug(slug: string): UnifiedVolcano | undefined {
   // Check Philippine volcanoes first (more detailed data)
-  const phVolcano = PHILIPPINE_VOLCANOES.find((v) => toSlug(v.name) === slug);
+  const phVolcano = PHILIPPINE_VOLCANOES.find((v) => volcanoNameToSlug(v.name) === slug);
   if (phVolcano) {
     return {
       id: phVolcano.id,
@@ -113,7 +109,7 @@ export async function generateStaticParams() {
   }));
   
   const phSlugs = PHILIPPINE_VOLCANOES.map((volcano) => ({
-    slug: toSlug(volcano.name),
+    slug: volcanoNameToSlug(volcano.name),
   }));
   
   // Combine and deduplicate
@@ -171,6 +167,9 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
       console.error('Failed to fetch earthquakes:', e);
     }
   }
+
+  // How fresh the nearby-earthquake data is (Philippine volcanoes only).
+  const freshness = getDataFreshness();
 
   const statusColors: Record<string, string> = {
     active: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
@@ -365,9 +364,17 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
               {/* Nearby Earthquakes (Philippine volcanoes) */}
               {volcano.isPhilippine && nearbyEarthquakes.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    🔴 Recent Earthquakes Within 50km
-                  </h2>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      🔴 Recent Earthquakes Within 50km
+                    </h2>
+                    <DataFreshness
+                      latest={freshness.latest}
+                      ageDays={freshness.ageDays}
+                      isStale={freshness.isStale}
+                      label="Data"
+                    />
+                  </div>
                   <div className="space-y-2">
                     {nearbyEarthquakes.map((eq: any) => (
                       <div

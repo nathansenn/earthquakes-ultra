@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS } from "@/data/philippine-volcanoes";
-import { getPhilippinesEarthquakes } from "@/lib/db-queries";
+import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS, volcanoNameToSlug } from "@/data/philippine-volcanoes";
+import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } from "@/lib/db-queries";
 import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
+import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
 
 export const metadata: Metadata = {
   title: "Philippine Volcanoes | Strategic Monitoring Dashboard",
@@ -19,7 +20,12 @@ export const revalidate = 1800; // 30 minutes
 export default async function VolcanoesPage() {
   // Fetch recent earthquakes for assessment
   let assessments: Awaited<ReturnType<typeof assessAllVolcanoes>> = [];
-  
+
+  // Anchor the analysis window to the freshest available data (see db-queries),
+  // and surface how old that data is so users aren't misled when ingestion lags.
+  const referenceTime = getDataReferenceTime();
+  const freshness = getDataFreshness();
+
   try {
     // Fetch M2+ earthquakes for volcanic assessment from local database (includes PHIVOLCS)
     const rawEarthquakes = getPhilippinesEarthquakes(30, 2.0, 5000);
@@ -32,8 +38,8 @@ export default async function VolcanoesPage() {
       timestamp: eq.time,
       location: eq.place || 'Unknown',
     }));
-    
-    assessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, earthquakes);
+
+    assessments = assessAllVolcanoes(PHILIPPINE_VOLCANOES, earthquakes, new Date(referenceTime));
   } catch (error) {
     console.error("Failed to fetch earthquakes for volcanic assessment:", error);
   }
@@ -136,12 +142,23 @@ export default async function VolcanoesPage() {
         </div>
       </section>
 
+      {/* Stale-data warning (only when the snapshot is behind) */}
+      <StaleDataBanner latest={freshness.latest} ageDays={freshness.ageDays} isStale={freshness.isStale} />
+
       {/* Risk Legend */}
       <section className="py-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wide">
-            Risk Level Guide (Strategic Planning)
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              Risk Level Guide (Strategic Planning)
+            </h2>
+            <DataFreshness
+              latest={freshness.latest}
+              ageDays={freshness.ageDays}
+              isStale={freshness.isStale}
+              label="Seismic data"
+            />
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {Object.entries(RISK_LEVEL_DESCRIPTIONS).map(([key, desc]) => (
               <div key={key} className="flex items-start gap-2">
@@ -253,8 +270,8 @@ export default async function VolcanoesPage() {
                         <span className="text-red-600 ml-2">• No hazard map</span>
                       )}
                     </div>
-                    <Link 
-                      href={`/volcanoes/${assessment.volcano.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    <Link
+                      href={`/volcanoes/${volcanoNameToSlug(assessment.volcano.name)}`}
                       className="text-sm text-red-600 dark:text-red-400 hover:underline"
                     >
                       View Details →
@@ -372,9 +389,14 @@ export default async function VolcanoesPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Data sources: USGS Earthquake Catalog, Global Volcanism Program, PHIVOLCS
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-              Last updated: {new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' })} PHT
-            </p>
+            <div className="mt-2 flex justify-center">
+              <DataFreshness
+                latest={freshness.latest}
+                ageDays={freshness.ageDays}
+                isStale={freshness.isStale}
+                label="Seismic data"
+              />
+            </div>
           </div>
         </div>
       </section>
