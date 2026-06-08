@@ -11,6 +11,8 @@ import { PHILIPPINE_VOLCANOES, Volcano as PhVolcano, volcanoNameToSlug } from "@
 import { getPhilippinesEarthquakes, getDataFreshness } from "@/lib/db-queries";
 import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
 import { DataFreshness } from "@/components/ui/DataFreshness";
+import { getEruptionRecord } from "@/data/eruption-history";
+import { philippineBaseAnnualRate } from "@/lib/eruption-forecast";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -43,6 +45,10 @@ interface UnifiedVolcano {
   riskFactors?: string[];
   description?: string;
   isPhilippine: boolean;
+  // Eruption history (GVP ground-truth, Philippine volcanoes)
+  recordedEruptions?: number;
+  recordStartYear?: number;
+  recurrenceYears?: number;
 }
 
 // Find volcano by slug from both databases
@@ -50,6 +56,8 @@ function getVolcanoBySlug(slug: string): UnifiedVolcano | undefined {
   // Check Philippine volcanoes first (more detailed data)
   const phVolcano = PHILIPPINE_VOLCANOES.find((v) => volcanoNameToSlug(v.name) === slug);
   if (phVolcano) {
+    const rec = getEruptionRecord(phVolcano.name);
+    const baseRate = philippineBaseAnnualRate(phVolcano);
     return {
       id: phVolcano.id,
       name: phVolcano.name,
@@ -63,8 +71,12 @@ function getVolcanoBySlug(slug: string): UnifiedVolcano | undefined {
       status: phVolcano.status,
       lastEruption: phVolcano.lastEruption,
       population30km: phVolcano.nearbyPopulation,
-      gvpId: phVolcano.id,
+      // Verified GVP number (legacy ids in the dataset were placeholders).
+      gvpId: rec?.gvpNumber ? String(rec.gvpNumber) : undefined,
       province: phVolcano.province,
+      recordedEruptions: rec?.historicalEruptions,
+      recordStartYear: rec?.recordStartYear,
+      recurrenceYears: Math.round(1 / baseRate),
       alertLevel: phVolcano.alertLevel,
       hydrothermalActivity: phVolcano.hydrothermalActivity,
       monitoringStations: phVolcano.monitoringStations,
@@ -250,7 +262,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
       {/* Main Content */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
               {/* Key Stats */}
@@ -302,7 +314,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     🇵🇭 PHIVOLCS Monitoring Data
                   </h2>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600 dark:text-gray-400">Alert Level</span>
@@ -358,6 +370,46 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Eruption history (Philippine volcanoes, GVP ground-truth) */}
+              {volcano.isPhilippine && volcano.recurrenceYears !== undefined && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    📜 Eruption History
+                  </h2>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {volcano.recordedEruptions ?? '—'}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Recorded Eruptions{volcano.recordStartYear ? ` (since ${volcano.recordStartYear})` : ''}
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        ~{volcano.recurrenceYears}y
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Avg. Recurrence
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {volcano.lastEruption || '—'}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Last Eruption
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+                    Baseline eruption rate derived from Smithsonian GVP confirmed-eruption frequency.
+                    Current eruption probability (incorporating PHIVOLCS alert level and live seismicity)
+                    is on the <Link href="/volcanoes/analysis" className="text-indigo-600 dark:text-indigo-400 hover:underline">Risk Analysis dashboard</Link>.
+                  </p>
                 </div>
               )}
 
@@ -420,7 +472,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Location
                 </h2>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Coordinates</p>
                     <p className="font-mono text-gray-900 dark:text-white">

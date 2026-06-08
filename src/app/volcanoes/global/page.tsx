@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { 
-  GLOBAL_VOLCANOES, 
-  getGlobalVolcanoStats, 
+import {
+  GLOBAL_VOLCANOES,
+  getGlobalVolcanoStats,
   getVolcanoCountries,
   getVolcanoRegions,
   getRecentlyEruptedVolcanoes,
@@ -11,6 +11,17 @@ import {
   countryToSlug,
   GlobalVolcano
 } from "@/data/global-volcanoes";
+import { assessGlobalVolcano, RiskLevel } from "@/lib/eruption-forecast";
+
+const RISK_TEXT: Record<RiskLevel, string> = {
+  CRITICAL: 'text-red-700 dark:text-red-300',
+  VERY_HIGH: 'text-red-600 dark:text-red-400',
+  HIGH: 'text-orange-600 dark:text-orange-400',
+  ELEVATED: 'text-yellow-600 dark:text-yellow-400',
+  MODERATE: 'text-lime-600 dark:text-lime-400',
+  LOW: 'text-green-600 dark:text-green-400',
+  BACKGROUND: 'text-gray-500 dark:text-gray-400',
+};
 
 export const metadata: Metadata = {
   title: "Global Volcano Database | QuakeGlobe",
@@ -55,10 +66,6 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
       
       <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
-          <p className="text-gray-500 dark:text-gray-400">Elevation</p>
-          <p className="font-semibold text-gray-900 dark:text-white">{volcano.elevation.toLocaleString()}m</p>
-        </div>
-        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
           <p className="text-gray-500 dark:text-gray-400">Last Eruption</p>
           <p className="font-semibold text-gray-900 dark:text-white">{volcano.lastEruption || 'Unknown'}</p>
         </div>
@@ -66,8 +73,14 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
           <p className="text-gray-500 dark:text-gray-400">Pop. 30km</p>
           <p className="font-semibold text-gray-900 dark:text-white">{formatPopulation(volcano.population30km)}</p>
         </div>
+        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded" title="Modeled 1-year eruption probability (baseline)">
+          <p className="text-gray-500 dark:text-gray-400">P(1yr)</p>
+          <p className={`font-semibold ${RISK_TEXT[assessGlobalVolcano(volcano).riskLevel]}`}>
+            {assessGlobalVolcano(volcano).probability1Year}%
+          </p>
+        </div>
       </div>
-      
+
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{volcano.type}</p>
     </Link>
   );
@@ -79,6 +92,12 @@ export default function GlobalVolcanoesPage() {
   const regions = getVolcanoRegions();
   const recentEruptions = getRecentlyEruptedVolcanoes(2020);
   const highRisk = getVolcanoesByPopulationRisk().slice(0, 20);
+
+  // Rank by the modeled baseline eruption probability (recency + status + VEI).
+  const byProbability = GLOBAL_VOLCANOES
+    .map((v) => ({ volcano: v, assessment: assessGlobalVolcano(v) }))
+    .sort((a, b) => b.assessment.probability1Year - a.assessment.probability1Year)
+    .slice(0, 12);
 
   // Group volcanoes by region
   const volcanoesGroupedByRegion = regions.reduce((acc, region) => {
@@ -141,6 +160,9 @@ export default function GlobalVolcanoesPage() {
             <a href="#risk" className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 whitespace-nowrap">
               Population Risk
             </a>
+            <a href="#probability" className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 whitespace-nowrap">
+              Eruption Probability
+            </a>
             <a href="#countries" className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 whitespace-nowrap">
               By Country
             </a>
@@ -162,7 +184,7 @@ export default function GlobalVolcanoesPage() {
             {recentEruptions.length} volcanoes have erupted in the past 5 years
           </p>
           
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {recentEruptions.slice(0, 12).map((volcano) => (
               <VolcanoCard key={volcano.id} volcano={volcano} />
             ))}
@@ -188,7 +210,7 @@ export default function GlobalVolcanoesPage() {
             Volcanoes with the most people living nearby (weighted by distance)
           </p>
           
-          <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {highRisk.slice(0, 12).map((volcano, index) => (
               <div key={volcano.id} className="relative">
                 <span className="absolute -top-2 -left-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold z-10">
@@ -196,6 +218,43 @@ export default function GlobalVolcanoesPage() {
                 </span>
                 <VolcanoCard volcano={volcano} />
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Highest modeled eruption probability */}
+      <section id="probability" className="py-8 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            📈 Highest Modeled Eruption Probability
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+            Baseline 1-year eruption probability from a Poisson model using each volcano&apos;s
+            status, recency of last eruption, and explosivity (no live seismicity — see the
+            Philippine dashboard for seismically-informed assessments).
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {byProbability.map(({ volcano, assessment }) => (
+              <Link
+                key={volcano.id}
+                href={`/volcanoes/${volcanoToSlug(volcano)}`}
+                className="block bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 transition-all"
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">{volcano.name}</h3>
+                  <span className={`text-lg font-bold ${RISK_TEXT[assessment.riskLevel]}`}>
+                    {assessment.probability1Year}%
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {volcano.country} • last {volcano.lastEruption || 'unknown'}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  ~1 eruption / {assessment.recurrenceYears} yr baseline
+                </p>
+              </Link>
             ))}
           </div>
         </div>
@@ -254,7 +313,7 @@ export default function GlobalVolcanoesPage() {
                   </span>
                 </h3>
                 
-                <div className="grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {regionVolcanoes.slice(0, 10).map((volcano) => (
                     <Link
                       key={volcano.id}

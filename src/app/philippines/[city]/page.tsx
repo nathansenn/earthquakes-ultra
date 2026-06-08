@@ -7,6 +7,7 @@ import {
   getNearbyCities,
   getDistanceFromLatLonInKm,
   getCitiesByRegion,
+  philippineRegions,
 } from "@/data/philippine-cities";
 import {
   ProcessedEarthquake,
@@ -180,14 +181,14 @@ export default async function CityPage({ params }: Props) {
           <nav className="flex items-center gap-2 text-sm text-purple-200 mb-4">
             <Link href="/philippines" className="hover:text-white transition-colors">Philippines</Link>
             <span>/</span>
-            <Link href={`/region/${city.regionCode.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-white transition-colors">
+            <Link href={`/region/${philippineRegions.find((r) => r.code === city.regionCode)?.slug ?? 'ncr'}`} className="hover:text-white transition-colors">
               {city.region}
             </Link>
             <span>/</span>
             <span className="text-white">{city.name}</span>
           </nav>
 
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Title & Info */}
             <div>
               <div className="flex items-start gap-4">
@@ -319,7 +320,7 @@ export default async function CityPage({ params }: Props) {
       {/* Main Content */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
               {/* Largest Earthquake Highlight */}

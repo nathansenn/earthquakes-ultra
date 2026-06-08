@@ -5,7 +5,11 @@ import { GLOBAL_VOLCANOES, GlobalVolcano } from "@/data/global-volcanoes";
 import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } from "@/lib/db-queries";
 import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
+import { assessGlobalVolcano } from "@/lib/eruption-forecast";
 import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
+import { RiskCard, RiskCardData, FactorRow } from "@/components/volcano/RiskCard";
+import { MiniRiskChip, MiniRiskData } from "@/components/volcano/MiniRiskChip";
+import { CountUpStat } from "@/components/volcano/CountUpStat";
 
 export const metadata: Metadata = {
   title: "AI Volcano Risk Analysis | Global Volcanic Prediction System",
@@ -19,16 +23,143 @@ export const metadata: Metadata = {
 
 export const revalidate = 1800; // 30 minutes
 
-// Risk category colors (v2 system)
-const RISK_COLORS: Record<string, { bg: string; badge: string }> = {
-  CRITICAL: { bg: 'bg-red-100 dark:bg-red-900/40', badge: 'bg-red-700 text-white animate-pulse' },
-  VERY_HIGH: { bg: 'bg-red-50 dark:bg-red-900/30', badge: 'bg-red-600 text-white' },
-  HIGH: { bg: 'bg-orange-50 dark:bg-orange-900/30', badge: 'bg-orange-500 text-white' },
-  ELEVATED: { bg: 'bg-yellow-50 dark:bg-yellow-900/30', badge: 'bg-yellow-500 text-black' },
-  MODERATE: { bg: 'bg-lime-50 dark:bg-lime-900/30', badge: 'bg-lime-500 text-white' },
-  LOW: { bg: 'bg-green-50 dark:bg-green-900/30', badge: 'bg-green-500 text-white' },
-  BACKGROUND: { bg: 'bg-gray-50 dark:bg-gray-800/30', badge: 'bg-gray-400 text-white' },
+const ALERT_TEXT: Record<number, string> = {
+  0: 'Normal — no significant unrest',
+  1: 'Low-level unrest (abnormal)',
+  2: 'Increasing / probable magmatic unrest',
+  3: 'Magma near surface — hazardous eruption possible within days–weeks',
+  4: 'Intense unrest — hazardous eruption imminent',
+  5: 'Hazardous eruption in progress',
 };
+
+// Build the serializable factor breakdown the interactive card animates.
+function buildFactors(a: RiskAssessment): FactorRow[] {
+  const f = a.factors;
+  const bv = a.bValueAnalysis;
+  const dm = a.depthMigration;
+  const ac = a.acceleration;
+  const trig = a.triggeringAnalysis;
+  return [
+    {
+      key: 'alert', kind: 'alert',
+      label: `PHIVOLCS alert (Level ${a.volcano.alertLevel})`,
+      value: f.alertMultiplier,
+      detail: ALERT_TEXT[a.volcano.alertLevel] ?? '',
+    },
+    {
+      key: 'trigger', kind: 'seismic', label: 'Earthquake triggering', value: f.triggeringMultiplier,
+      detail: trig.triggerEvents.length
+        ? `${trig.triggerEvents.length} qualifying large quake(s); static ΔCFS ~${trig.staticStressChange.toFixed(3)} bar`
+        : 'No qualifying large earthquakes in range/time window',
+    },
+    {
+      key: 'recent', kind: 'seismic', label: 'Recent local seismicity', value: f.recentActivityMultiplier,
+      detail: `${a.stats.nearFieldCount} events within 15 km · ${a.stats.eventRate30Day.toFixed(1)}/day`,
+    },
+    {
+      key: 'bvalue', kind: 'seismic', label: 'b-value anomaly', value: f.bValueMultiplier,
+      detail: bv.sampleSize >= 20
+        ? `b=${bv.bValue.toFixed(2)} (${bv.anomaly}) · Mc ${bv.mc.toFixed(1)} · n=${bv.sampleSize}`
+        : 'Insufficient events for a reliable b-value',
+    },
+    {
+      key: 'cluster', kind: 'seismic', label: 'Seismic clusters / swarms', value: f.clusterMultiplier,
+      detail: a.clusters.length
+        ? `${a.clusters.length} cluster(s); ${a.clusters.filter(c => c.isSwarm).length} swarm-like`
+        : 'No significant clustering',
+    },
+    {
+      key: 'depth', kind: 'seismic', label: 'Magma depth migration', value: f.depthMigrationMultiplier,
+      detail: dm.detected ? `${Math.abs(dm.rate).toFixed(2)} km/day ${dm.direction}` : 'No coherent migration',
+    },
+    {
+      key: 'accel', kind: 'seismic', label: 'Accelerating seismicity', value: f.accelerationMultiplier,
+      detail: ac.detected ? `${ac.type.replace('_', ' ')} (R²=${ac.rsquared.toFixed(2)})` : 'No acceleration detected',
+    },
+    {
+      key: 'hydro', kind: 'static', label: 'Hydrothermal system', value: f.hydrothermalMultiplier,
+      detail: `Activity level ${a.volcano.hydrothermalActivity}/3`,
+    },
+  ];
+}
+
+function toRiskCardData(a: RiskAssessment, slug: string, refTime: number): RiskCardData {
+  const bv = a.bValueAnalysis;
+  return {
+    id: a.volcano.id,
+    name: a.volcano.name,
+    province: a.volcano.province ?? '',
+    region: a.volcano.region ?? '',
+    type: a.volcano.type,
+    status: a.volcano.status,
+    slug,
+    alertLevel: a.volcano.alertLevel,
+    monitoringStations: a.volcano.monitoringStations,
+    hasHazardMap: a.volcano.hasHazardMap,
+    riskLevel: a.riskLevel,
+    confidence: a.confidence,
+    p1Year: a.probability1Year,
+    p30Day: a.probability30Day,
+    baseAnnualRate: a.factors.baseline,
+    effectiveAnnualRate: a.factors.effectiveAnnualRate,
+    recurrenceYears: Math.max(1, Math.round(1 / a.factors.baseline)),
+    alertMultiplier: a.factors.alertMultiplier,
+    seismicMultiplier: a.factors.combinedMultiplier,
+    factors: buildFactors(a),
+    triggerEvents: a.triggeringAnalysis.triggerEvents.slice(0, 4).map(t => ({
+      magnitude: t.event.magnitude,
+      distanceKm: t.event.distanceToVolcano ?? 0,
+      model: t.model,
+      decayRemaining: t.decayRemaining,
+      daysAgo: Math.max(0, Math.round((refTime - new Date(t.event.timestamp).getTime()) / 86400000)),
+    })),
+    bValue: bv.sampleSize >= 20 ? {
+      value: bv.bValue, mc: bv.mc, anomaly: bv.anomaly,
+      sampleSize: bv.sampleSize, stdErr: bv.standardError, interpretation: bv.interpretation,
+    } : null,
+    depthMigration: {
+      detected: a.depthMigration.detected, direction: a.depthMigration.direction,
+      rate: a.depthMigration.rate, startDepth: a.depthMigration.startDepth,
+      currentDepth: a.depthMigration.currentDepth, interpretation: a.depthMigration.interpretation,
+    },
+    acceleration: {
+      detected: a.acceleration.detected, type: a.acceleration.type,
+      rsquared: a.acceleration.rsquared,
+      projectedPeak: a.acceleration.projectedPeakDate
+        ? new Date(a.acceleration.projectedPeakDate).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' })
+        : null,
+    },
+    clusters: a.clusters.slice(0, 4).map(c => ({
+      name: c.name, count: c.earthquakes.length, maxMagnitude: c.maxMagnitude,
+      avgDepth: c.avgDepth, isSwarm: c.isSwarm, isMigrating: c.isMigrating,
+      migrationDirection: c.migrationDirection,
+    })),
+    stats: {
+      earthquakesAnalyzed: a.stats.earthquakesAnalyzed, m3PlusCount: a.stats.m3PlusCount,
+      m4PlusCount: a.stats.m4PlusCount, m5PlusCount: a.stats.m5PlusCount,
+      shallowCount: a.stats.shallowCount, nearFieldCount: a.stats.nearFieldCount,
+      eventRate30Day: a.stats.eventRate30Day, energyRelease30Day: a.stats.energyRelease30Day,
+    },
+    scientificNotes: a.scientificNotes,
+    guidanceAction: a.strategicGuidance.action,
+  };
+}
+
+function toMiniRiskData(a: RiskAssessment, slug: string): MiniRiskData {
+  return {
+    id: a.volcano.id,
+    name: a.volcano.name,
+    province: a.volcano.province ?? '',
+    status: a.volcano.status,
+    slug,
+    alertLevel: a.volcano.alertLevel,
+    riskLevel: a.riskLevel,
+    p1Year: a.probability1Year,
+    baseAnnualRate: a.factors.baseline,
+    recurrenceYears: Math.max(1, Math.round(1 / a.factors.baseline)),
+    lastEruption: a.volcano.lastEruption ?? '',
+  };
+}
 
 function formatPopulation(pop: number | undefined): string {
   if (!pop) return 'N/A';
@@ -68,15 +199,11 @@ export default async function VolcanoAnalysisPage() {
     console.error("Failed to fetch earthquake data:", error);
   }
 
-  // Separate by risk level
-  // Use v2 risk levels for filtering
+  // Separate by risk level (assessments are pre-sorted by probability desc)
+  const ACTIVE_LEVELS = ['CRITICAL', 'VERY_HIGH', 'HIGH', 'ELEVATED'];
+  const activeRisk = philippineAssessments.filter(a => ACTIVE_LEVELS.includes(a.riskLevel));
+  const normalRisk = philippineAssessments.filter(a => !ACTIVE_LEVELS.includes(a.riskLevel));
   const criticalRisk = philippineAssessments.filter(a => a.riskLevel === 'CRITICAL');
-  const veryHighRisk = philippineAssessments.filter(a => a.riskLevel === 'VERY_HIGH');
-  const highRisk = philippineAssessments.filter(a => a.riskLevel === 'HIGH');
-  const elevatedRisk = philippineAssessments.filter(a => a.riskLevel === 'ELEVATED');
-  const normalRisk = philippineAssessments.filter(a => 
-    a.riskLevel === 'MODERATE' || a.riskLevel === 'LOW' || a.riskLevel === 'BACKGROUND'
-  );
 
   // High-risk global volcanoes (sort by population exposure)
   const highRiskGlobal = GLOBAL_VOLCANOES
@@ -105,23 +232,23 @@ export default async function VolcanoAnalysisPage() {
           {/* Key Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-8">
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
-              <p className="text-2xl sm:text-3xl font-bold">{totalVolcanoes}</p>
+              <p className="text-2xl sm:text-3xl font-bold"><CountUpStat value={totalVolcanoes} /></p>
               <p className="text-xs sm:text-sm text-indigo-100">Volcanoes Tracked</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
-              <p className="text-2xl sm:text-3xl font-bold">{criticalRisk.length + highRisk.length}</p>
+              <p className="text-2xl sm:text-3xl font-bold"><CountUpStat value={activeRisk.length} /></p>
               <p className="text-xs sm:text-sm text-indigo-100">Elevated Risk (PH)</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
-              <p className="text-2xl sm:text-3xl font-bold">{philippineAssessments[0]?.stats.earthquakesAnalyzed || 0}</p>
+              <p className="text-2xl sm:text-3xl font-bold"><CountUpStat value={philippineAssessments[0]?.stats.earthquakesAnalyzed || 0} /></p>
               <p className="text-xs sm:text-sm text-indigo-100">Earthquakes Analyzed</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center">
-              <p className="text-2xl sm:text-3xl font-bold">{recentGlobalEarthquakes}</p>
+              <p className="text-2xl sm:text-3xl font-bold"><CountUpStat value={recentGlobalEarthquakes} /></p>
               <p className="text-xs sm:text-sm text-indigo-100">M5+ (7 days)</p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 sm:p-4 text-center col-span-2 sm:col-span-1">
-              <p className="text-2xl sm:text-3xl font-bold">{uniqueCountries}</p>
+              <p className="text-2xl sm:text-3xl font-bold"><CountUpStat value={uniqueCountries} /></p>
               <p className="text-xs sm:text-sm text-indigo-100">Countries</p>
             </div>
           </div>
@@ -134,10 +261,12 @@ export default async function VolcanoAnalysisPage() {
           <div className="flex items-start gap-3">
             <span className="text-xl">🧠</span>
             <div className="text-sm text-indigo-800 dark:text-indigo-200">
-              <strong>AI Analysis Methodology:</strong> This system correlates real-time USGS seismic data with volcanic centers using 
-              peer-reviewed models (Nishimura 2017, Jenkins 2024). Analysis includes earthquake frequency, depth migration patterns, 
-              swarm detection, and historical eruption correlation. <strong>Not a deterministic prediction</strong> — probabilities 
-              represent elevated risk over extended timeframes.
+              <strong>Methodology:</strong> Each Philippine volcano starts from a per-volcano baseline
+              eruption rate (Smithsonian GVP eruption history), modulated by its official PHIVOLCS alert
+              level and live PHIVOLCS/USGS seismicity — earthquake triggering (Nishimura 2017; Jenkins 2024),
+              depth migration, b-value, accelerating seismicity and swarms — then converted to a probability
+              with a Poisson event model. <strong>Not a deterministic prediction</strong>; probabilities are
+              statistical estimates. PHIVOLCS remains the authoritative source.
             </div>
           </div>
         </div>
@@ -146,192 +275,53 @@ export default async function VolcanoAnalysisPage() {
       {/* Stale-data warning (only when the snapshot is behind) */}
       <StaleDataBanner latest={freshness.latest} ageDays={freshness.ageDays} isStale={freshness.isStale} />
 
-      {/* Critical, Very High & High Risk Philippine Volcanoes */}
-      {(criticalRisk.length > 0 || veryHighRisk.length > 0 || highRisk.length > 0) && (
-        <section className="py-8 bg-red-50/50 dark:bg-red-900/10">
+      {/* Active Risk — interactive, animated cards showing exactly what drives each number */}
+      {activeRisk.length > 0 && (
+        <section className="py-8 bg-red-50/40 dark:bg-red-900/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-2">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {criticalRisk.length > 0 ? '⚠️ Critical Alert' : '🚨 Elevated Risk Assessment'} - Philippines
+                {criticalRisk.length > 0 ? '⚠️ Critical Alert' : '🚨 Elevated Risk Assessment'} — Philippines
               </h2>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-3xl">
-              Philippine volcanoes with elevated seismic indicators. Review emergency preparedness.
+            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-3xl text-sm">
+              Each card shows how the probability is built — baseline rate × PHIVOLCS alert × live
+              seismicity → Poisson — and expands to reveal the exact data the model is reading.
+              Tap a card to drill in.
             </p>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {[...criticalRisk, ...veryHighRisk, ...highRisk].map((assessment) => (
-                <div 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {activeRisk.map((assessment, i) => (
+                <RiskCard
                   key={assessment.volcano.id}
-                  className={`rounded-xl p-6 border-2 ${RISK_COLORS[assessment.riskLevel]?.bg || 'bg-gray-50'} border-red-200 dark:border-red-800`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                        🌋 {assessment.volcano.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {assessment.volcano.province}, {assessment.volcano.region}
-                      </p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${RISK_COLORS[assessment.riskLevel]?.badge || 'bg-gray-500 text-white'}`}>
-                      {assessment.riskLevel.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  {/* Key Metrics */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Risk Score</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {assessment.probability1Year}%
-                      </p>
-                    </div>
-                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Multiplier</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {assessment.factors.combinedMultiplier}x
-                      </p>
-                    </div>
-                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Confidence</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                        {assessment.confidence.toLowerCase().replace('_', ' ')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Strategic Guidance */}
-                  <div className="mb-4 p-3 bg-white/40 dark:bg-gray-800/40 rounded-lg">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      📋 {assessment.strategicGuidance.action}
-                    </p>
-                  </div>
-
-                  {/* Key Factors */}
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                    <strong>Contributing factors:</strong>
-                    <ul className="mt-1 space-y-1">
-                      {assessment.factors.triggeringMultiplier > 1.1 && (
-                        <li>• Large earthquake trigger ({assessment.factors.triggeringMultiplier.toFixed(2)}x)</li>
-                      )}
-                      {assessment.factors.bValueMultiplier > 1.5 && (
-                        <li>• Seismicity anomaly ({assessment.factors.bValueMultiplier.toFixed(2)}x)</li>
-                      )}
-                      {assessment.factors.clusterMultiplier > 1 && (
-                        <li>• Dual-cluster stress concentration</li>
-                      )}
-                      {assessment.factors.hydrothermalMultiplier > 1.5 && (
-                        <li>• Active hydrothermal system</li>
-                      )}
-                    </ul>
-                  </div>
-
-                  {/* Clusters */}
-                  {assessment.clusters.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        Active Seismic Clusters:
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {assessment.clusters.slice(0, 3).map(cluster => (
-                          <span key={cluster.id} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs">
-                            {cluster.name} • {cluster.earthquakes.length} events • M{cluster.maxMagnitude.toFixed(1)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-600">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {assessment.volcano.monitoringStations} stations • 
-                      {assessment.volcano.hasHazardMap ? ' Has hazard map' : ' No hazard map'}
-                    </div>
-                    <Link
-                      href={`/volcanoes/${volcanoNameToSlug(assessment.volcano.name)}`}
-                      className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
-                    >
-                      View Details →
-                    </Link>
-                  </div>
-                </div>
+                  index={i}
+                  data={toRiskCardData(assessment, volcanoNameToSlug(assessment.volcano.name), referenceTime)}
+                />
               ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* Elevated Risk */}
-      {elevatedRisk.length > 0 && (
-        <section className="py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-yellow-500" />
-              Elevated - Monitor Official Channels
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
-              Above-background seismic activity. Maintain awareness.
-            </p>
-
-            <div className="grid md:grid-cols-3 gap-4">
-              {elevatedRisk.map((assessment) => (
-                <div 
-                  key={assessment.volcano.id}
-                  className="rounded-xl p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {assessment.volcano.name}
-                    </h3>
-                    <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                      {assessment.probability1Year}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    {assessment.volcano.province} • {assessment.volcano.type}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {assessment.strategicGuidance.action.split(' - ')[0]}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Normal Risk - Compact Display */}
+      {/* Standard Monitoring — compact, animated, tap to expand */}
       <section className="py-8 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            Standard Monitoring - Philippine Volcanoes
+            Standard Monitoring — Philippine Volcanoes
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
-            Background-level activity. Standard volcanic area preparedness applies.
+            Background-level activity — probability reflects the long-run baseline rate. Tap any volcano
+            to see how its baseline is derived.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {normalRisk.map((assessment) => (
-              <div 
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {normalRisk.map((assessment, i) => (
+              <MiniRiskChip
                 key={assessment.volcano.id}
-                className="rounded-xl p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <h3 className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                    {assessment.volcano.name}
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {assessment.volcano.province}
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {assessment.probability1Year}% • {assessment.volcano.status}
-                </p>
-              </div>
+                index={i}
+                data={toMiniRiskData(assessment, volcanoNameToSlug(assessment.volcano.name))}
+              />
             ))}
           </div>
         </div>
@@ -354,7 +344,7 @@ export default async function VolcanoAnalysisPage() {
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {highRiskGlobal.map((volcano) => (
               <div key={volcano.id} className="rounded-xl p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
@@ -364,12 +354,17 @@ export default async function VolcanoAnalysisPage() {
                       {volcano.country} • {volcano.subregion}
                     </p>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    volcano.status === 'active' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 
-                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                  }`}>
-                    {volcano.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      volcano.status === 'active' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                    }`}>
+                      {volcano.status}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300" title="Modeled 1-year eruption probability (baseline)">
+                      <CountUpStat value={assessGlobalVolcano(volcano).probability1Year} decimals={1} suffix="% / yr" />
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
@@ -424,7 +419,7 @@ export default async function VolcanoAnalysisPage() {
           <h2 className="text-2xl font-bold mb-2 text-center">🛰️ Real-Time Monitoring Resources</h2>
           <p className="text-center text-indigo-200 mb-8">Live satellite imagery and official volcanic monitoring</p>
           
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <a
               href="https://zoom.earth/#view=12.5,122,5z/layers=fires"
               target="_blank"
@@ -470,7 +465,7 @@ export default async function VolcanoAnalysisPage() {
             </a>
           </div>
           
-          <div className="grid sm:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             <a
               href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@122,12.5,6z"
               target="_blank"
@@ -514,7 +509,7 @@ export default async function VolcanoAnalysisPage() {
             📚 Scientific Methodology
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">
                 Risk Factors Analyzed
@@ -550,23 +545,27 @@ export default async function VolcanoAnalysisPage() {
               <ul className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>USGS Earthquake Catalog:</strong> Real-time global seismic data</div>
+                  <div><strong>Smithsonian GVP:</strong> per-volcano eruption histories &rarr; baseline rates</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Smithsonian GVP:</strong> Global Volcanism Program database</div>
+                  <div><strong>PHIVOLCS:</strong> official alert levels + live M1+ seismicity</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Nishimura (2017):</strong> Large earthquake triggering model</div>
+                  <div><strong>Nishimura (2017), <em>GRL</em> 44:</strong> M&ge;7.5 within 200 km &rarr; ~50% higher eruption probability for 5 yr</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>Jenkins et al. (2024):</strong> Statistical triggering analysis</div>
+                  <div><strong>Jenkins et al. (2024), <em>Volcanica</em>:</strong> M&ge;7 within 750 km &rarr; ~1.25&times; eruption rate (1&ndash;4 yr)</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
-                  <div><strong>PHIVOLCS:</strong> Philippine Institute of Volcanology</div>
+                  <div><strong>Aki (1965) / Wiemer &amp; Wyss (2000):</strong> b-value with data-driven completeness magnitude</div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">✓</span>
+                  <div><strong>Poisson event model</strong> (Bebbington; Marzocchi &amp; Bebbington 2012): rate &rarr; probability</div>
                 </li>
               </ul>
             </div>

@@ -1,5 +1,65 @@
 # Earthquakes Ultra - Issues & Fixes Tracker
 
+## 🔬 Volcanic Prediction System v3.0 - DEPLOYED
+
+**Date:** 2026-06-08
+
+Accuracy overhaul anchored in primary-source research. Key changes over v2:
+
+### 1. Per-volcano baseline rates (was: 3 status buckets)
+Each Philippine volcano now starts from a baseline eruption rate derived from its
+**actual Smithsonian GVP eruption history** (`confirmed eruptions ÷ record length`)
+rather than a flat `active/potentially_active/dormant` constant. Examples:
+Mayon 66 eruptions since 1616 ≈ 0.16/yr (~6 yr), Kanlaon 31 since 1866 ≈ 0.19/yr,
+Taal 39 since 1572 ≈ 0.09/yr, Bulusan 25 since 1852 ≈ 0.14/yr, Pinatubo ≈ 0.011/yr.
+Under-documented volcanoes fall back to a status + recency prior.
+
+### 2. Official PHIVOLCS alert level is now an input
+The alert level (0–5) is the authoritative observed-unrest signal and the strongest
+near-term predictor. It contributes both a rate multiplier and a probability floor
+(AL3 ⇒ ≥70% within a year, AL2 ⇒ ≥30%, AL1 ⇒ ≥8%). This is why Mayon (AL3) and
+Kanlaon (AL2) now correctly surface as CRITICAL.
+
+### 3. Poisson event model (was: rate × multiplier, hard-capped at 65%)
+Probability is now `P(≥1 eruption in t) = 1 − exp(−λ·t)` with
+`λ = baseRate × seismicMultipliers × alertFactor`, evaluated at 30 days and 1 year.
+Capped at 98% (never claims certainty).
+
+### 4. Data-driven completeness magnitude (was: fixed Mc = 2.0)
+The b-value (Aki 1965 MLE) now uses Mc estimated by the maximum-curvature method
+(Wiemer & Wyss 2000) on the actual catalogue.
+
+### 5. Global baseline model (new)
+All global volcanoes now get a principled Poisson baseline probability from
+status + recency of last eruption + VEI, surfaced on `/volcanoes/global` and the
+analysis dashboard (clearly labelled lower-confidence — no live seismicity).
+
+### 6. Corrected ground-truth data
+- Fixed scrambled/placeholder GVP volcano numbers (e.g. the dataset tagged Taal
+  with Mayon's GVP id `273030`); links now use verified GVP numbers.
+- Updated last-eruption years (Mayon/Kanlaon 2026, Bulusan 2025) and confirmed
+  current alert levels against PHIVOLCS bulletins (Mayon AL3, Kanlaon AL2, Taal AL1, Bulusan AL1).
+
+### Verified output (2026-06-08 snapshot)
+```
+Mayon     AL3  CRITICAL  ~98%/yr      Bulusan  AL1  HIGH  ~34%/yr
+Kanlaon   AL2  CRITICAL  ~81%/yr      Taal     AL1  HIGH  ~29%/yr
+(all others: LOW / BACKGROUND)
+```
+
+### Corrected references
+| Model | Correct citation | Finding used |
+|-------|------------------|--------------|
+| Nishimura (2017) | *Geophys. Res. Lett.* **44**, 7750–7756 | M≥7.5, ≤200 km ⇒ +~50% eruption prob. for 5 yr |
+| Jenkins, Rust & Biggs (2024) | *Volcanica* **7**(1), 165–179 | M≥7, ≤750 km ⇒ ~1.25× rate, strongest yr 1, elevated 2–4 yr |
+| Wiemer & Wyss (2000) | *BSSA* **90**, 859–869 | Maximum-curvature magnitude of completeness |
+| Marzocchi & Bebbington (2012) | *Bull. Volcanol.* **74** | Poisson/renewal eruption-probability framework |
+
+> **Note:** v2 mis-cited Nishimura (2017) as "JGR Solid Earth 122(3)"; the correct
+> venue is *Geophysical Research Letters* **44**. Corrected here.
+
+---
+
 ## 🔬 Volcanic Prediction System v2.0 - DEPLOYED
 
 **Date:** 2026-02-02
@@ -8,8 +68,8 @@
 
 | Model | Reference | Parameters | Purpose |
 |-------|-----------|------------|---------|
-| **Nishimura (2017)** | JGR Solid Earth, 122(3) | M≥7.5, ≤200km, 5yr decay | Static stress triggering |
-| **Jenkins et al. (2024)** | Statistical analysis | M≥7.0, ≤750km, 4yr decay | Regional eruption rate increase |
+| **Nishimura (2017)** | Geophys. Res. Lett., 44 | M≥7.5, ≤200km, 5yr decay | Static stress triggering |
+| **Jenkins et al. (2024)** | Volcanica, 7(1) | M≥7.0, ≤750km, 4yr decay | Regional eruption rate increase |
 | **Manga & Brodsky (2006)** | Annu. Rev. Earth Planet. Sci. | M≥8.0, ≤5000km, 1yr effect | Dynamic/teleseismic triggering |
 | **Roman & Cashman (2006)** | Geology, 34(6) | Depth trend analysis | Magma ascent detection |
 | **Kilburn (2003)** | J. Volcanol. Geotherm. Res. | Inverse rate method | Failure forecast modeling |

@@ -185,7 +185,7 @@ export default async function VolcanoesPage() {
               These volcanoes have elevated statistical indicators. Review your emergency plans.
             </p>
             
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[...criticalRisk, ...veryHighRisk, ...highRisk].map((assessment) => (
                 <div 
                   key={assessment.volcano.id}
@@ -295,7 +295,7 @@ export default async function VolcanoesPage() {
               Above-normal indicators. Maintain awareness through official channels.
             </p>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {elevatedRisk.map((assessment) => (
                 <div 
                   key={assessment.volcano.id}
@@ -363,7 +363,7 @@ export default async function VolcanoesPage() {
             About This Assessment
           </h2>
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Scientific Basis</h3>
               <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
