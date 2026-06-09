@@ -34,6 +34,37 @@ export interface ClusterRow {
   migrationDirection: string;
 }
 
+export interface EvidenceRow {
+  id: string;
+  label: string;
+  direction: 'increases' | 'decreases' | 'neutral';
+  strength: 'strong' | 'moderate' | 'slight' | 'none';
+  weight: number;
+  finding: string;
+  reasoning: string;
+  basis: string;
+}
+
+export interface RiskDirectionData {
+  trend: 'rising' | 'steady' | 'easing';
+  vsBaseline: number;
+  summary: string;
+  topDrivers: string[];
+}
+
+export interface ReposeData {
+  hasData: boolean;
+  status: string;
+  yearsSinceLast: number | null;
+  meanRecurrenceYears: number | null;
+  reposeRatio: number | null;
+  interpretation: string;
+}
+
+export interface NotableEruptionRow { year: number; vei?: number; note: string; }
+export interface UnrestRow { kind: string; note: string; }
+export interface RefRow { label: string; url: string; }
+
 export interface RiskCardData {
   id: string;
   name: string;
@@ -75,6 +106,15 @@ export interface RiskCardData {
   };
   scientificNotes: string[];
   guidanceAction: string;
+  // Reasoning, evidence & historical/scientific context
+  riskDirection: RiskDirectionData;
+  evidence: EvidenceRow[];
+  repose: ReposeData;
+  eruptionStyle?: string;
+  dominantVEI?: number;
+  notableEruptions: NotableEruptionRow[];
+  recentUnrest: UnrestRow[];
+  references: RefRow[];
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +152,109 @@ function anomalyChip(anomaly: string): string {
   if (anomaly === 'low') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
   if (anomaly === 'high') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
   return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+}
+
+// ---------------------------------------------------------------------------
+// Risk direction + evidence ledger + historical context
+// ---------------------------------------------------------------------------
+
+const DIR: Record<string, { icon: string; label: string; cls: string }> = {
+  rising: { icon: '↑', label: 'Rising', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  steady: { icon: '→', label: 'Steady', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+  easing: { icon: '↓', label: 'Easing', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+};
+
+function DirectionBadge({ trend }: { trend: string }) {
+  const d = DIR[trend] ?? DIR.steady;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${d.cls}`}>
+      <span aria-hidden>{d.icon}</span>{d.label}
+    </span>
+  );
+}
+
+const UNREST_ICON: Record<string, string> = {
+  so2: '🟡', deformation: '📐', seismicity: '📡', thermal: '🌡️', hydrothermal: '♨️', lahar: '🌊', other: '•',
+};
+const UNREST_LABEL: Record<string, string> = {
+  so2: 'SO₂ flux', deformation: 'Deformation', seismicity: 'Seismicity',
+  thermal: 'Thermal', hydrothermal: 'Hydrothermal', lahar: 'Lahar', other: 'Signal',
+};
+
+// The evidence ledger — every signal, its direction, weight, and the reasoning.
+function EvidenceLedger({ evidence }: { evidence: EvidenceRow[] }) {
+  const prio = (e: EvidenceRow) => (e.direction === 'increases' ? 0 : e.direction === 'decreases' ? 1 : 2);
+  const rows = [...evidence].sort((a, b) =>
+    prio(a) - prio(b) || (a.direction === 'decreases' ? a.weight - b.weight : b.weight - a.weight));
+  const maxDev = Math.max(...evidence.map(e => Math.abs(Math.log(e.weight || 1))), 0.15);
+
+  return (
+    <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+      {rows.map((e) => {
+        const inc = e.direction === 'increases';
+        const dec = e.direction === 'decreases';
+        const icon = inc ? '▲' : dec ? '▼' : '●';
+        const iconCls = inc
+          ? (e.strength === 'strong' ? 'text-red-500' : e.strength === 'moderate' ? 'text-orange-500' : 'text-amber-500')
+          : dec ? 'text-emerald-500' : 'text-gray-300 dark:text-gray-600';
+        const barCls = inc ? (e.strength === 'strong' ? 'bg-red-500' : e.strength === 'moderate' ? 'bg-orange-500' : 'bg-amber-400')
+          : dec ? 'bg-emerald-400' : 'bg-gray-300 dark:bg-gray-600';
+        const w = Math.min(100, 6 + (Math.abs(Math.log(e.weight || 1)) / maxDev) * 94);
+        return (
+          <div key={e.id} className="py-2">
+            <div className="flex items-baseline gap-2">
+              <span className={`text-xs ${iconCls}`} aria-hidden>{icon}</span>
+              <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{e.label}</span>
+              {e.direction !== 'neutral' && (
+                <span className="text-[10px] uppercase tracking-wide text-gray-400">{e.strength}</span>
+              )}
+              <span className="ml-auto text-[11px] font-mono text-gray-500 dark:text-gray-400">
+                {e.direction === 'increases' ? 'raises' : e.direction === 'decreases' ? 'lowers' : 'neutral'} ·×{e.weight}
+              </span>
+            </div>
+            <div className="mt-1 h-1 rounded-full bg-gray-100 dark:bg-gray-700/70 overflow-hidden">
+              <div className={`h-full rounded-full ${barCls}`} style={{ width: `${w}%` }} />
+            </div>
+            <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">{e.finding}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">{e.reasoning}</p>
+            <p className="text-[10px] italic text-gray-400 dark:text-gray-500">Basis: {e.basis}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReposeGauge({ repose }: { repose: ReposeData }) {
+  if (!repose.hasData || repose.yearsSinceLast == null || repose.meanRecurrenceYears == null) {
+    return <p className="text-[11px] text-gray-500 dark:text-gray-400">{repose.interpretation}</p>;
+  }
+  const ratio = repose.reposeRatio ?? 0;
+  const pos = Math.min(100, (ratio / 2) * 100); // 0 → just erupted, 100% → 2× average
+  const statusCls = repose.status === 'overdue' || repose.status === 'long-overdue'
+    ? 'text-red-600 dark:text-red-400'
+    : repose.status === 'recently-active' ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-gray-600 dark:text-gray-300';
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-[11px] mb-1">
+        <span className="text-gray-500 dark:text-gray-400">
+          {repose.yearsSinceLast} yr since last · ~{repose.meanRecurrenceYears} yr average
+        </span>
+        <span className={`font-semibold capitalize ${statusCls}`}>{repose.status.replace('-', ' ')}</span>
+      </div>
+      <div className="relative h-2 rounded-full bg-gradient-to-r from-emerald-300 via-gray-200 to-red-400 dark:from-emerald-800 dark:via-gray-700 dark:to-red-800">
+        {/* average-recurrence marker at 50% (ratio = 1) */}
+        <span className="absolute top-[-3px] h-[14px] w-px bg-gray-500 dark:bg-gray-300" style={{ left: '50%' }} />
+        <span className="absolute -top-1 w-3.5 h-3.5 rounded-full bg-white dark:bg-gray-900 border-2 border-gray-700 dark:border-gray-200"
+          style={{ left: `calc(${pos}% - 7px)` }} />
+      </div>
+      <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
+        <span>just erupted</span><span>average</span><span>2× overdue</span>
+      </div>
+      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">{repose.interpretation}</p>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +415,63 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function Evidence({ d }: { d: RiskCardData }) {
   return (
     <div className="space-y-5 pt-4">
+      {/* Evidence ledger — why the risk is higher or lower */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">🧭 Why this risk — full evidence &amp; reasoning</h4>
+          <DirectionBadge trend={d.riskDirection.trend} />
+        </div>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{d.riskDirection.summary}</p>
+        <EvidenceLedger evidence={d.evidence} />
+      </div>
+
+      {/* Historical context: repose + eruptive character */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60">
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">🕰️ Repose / “overdue” analysis</h4>
+          <ReposeGauge repose={d.repose} />
+        </div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60">
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">🌋 Eruptive character</h4>
+          {d.eruptionStyle && <p className="text-[11px] text-gray-600 dark:text-gray-300">{d.eruptionStyle}</p>}
+          {d.dominantVEI != null && (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Typical explosivity ≈ VEI {d.dominantVEI}</p>
+          )}
+          {d.notableEruptions.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {d.notableEruptions.slice(0, 5).map((n) => (
+                <li key={n.year} className="flex items-start gap-2 text-[11px]">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200 tabular-nums w-9 shrink-0">{n.year}</span>
+                  {n.vei != null && (
+                    <span className="px-1 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">VEI {n.vei}</span>
+                  )}
+                  <span className="text-gray-500 dark:text-gray-400">{n.note}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Current multi-parameter unrest signals */}
+      {d.recentUnrest.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">📍 Current unrest signals (PHIVOLCS, 2026)</h4>
+          <div className="flex flex-wrap gap-2">
+            {d.recentUnrest.map((u, i) => (
+              <span key={i} className="inline-flex items-start gap-1.5 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800/60 text-[11px] text-gray-600 dark:text-gray-300 max-w-full">
+                <span aria-hidden>{UNREST_ICON[u.kind] ?? '•'}</span>
+                <span><span className="font-semibold">{UNREST_LABEL[u.kind] ?? 'Signal'}:</span> {u.note}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-gray-100 dark:border-gray-700/60 pt-4">
+        <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-3">Detailed instrument readouts</p>
+      </div>
+
       {/* PHIVOLCS alert */}
       <div>
         <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
@@ -419,6 +619,21 @@ function Evidence({ d }: { d: RiskCardData }) {
           </ul>
         </div>
       )}
+
+      {/* References */}
+      {d.references.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">📚 References</h4>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+            {d.references.map((r, i) => (
+              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+                className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                {r.label} <span aria-hidden>↗</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -457,6 +672,7 @@ export function RiskCard({ data, index = 0 }: { data: RiskCardData; index?: numb
                 )}
                 <span className="relative">{data.riskLevel.replace('_', ' ')}</span>
               </span>
+              <DirectionBadge trend={data.riskDirection.trend} />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {data.province}{data.province && data.region ? ', ' : ''}{data.region} · {data.type}
@@ -467,6 +683,7 @@ export function RiskCard({ data, index = 0 }: { data: RiskCardData; index?: numb
               {' · '}{data.hasHazardMap ? 'hazard map ✓' : 'no hazard map'}
             </p>
             <p className="text-sm text-gray-700 dark:text-gray-200 mt-2">📋 {data.guidanceAction}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{data.riskDirection.summary}</p>
           </div>
         </div>
 

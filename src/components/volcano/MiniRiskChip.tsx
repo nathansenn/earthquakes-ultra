@@ -16,7 +16,15 @@ export interface MiniRiskData {
   baseAnnualRate: number;
   recurrenceYears: number;
   lastEruption: string;
+  trend: 'rising' | 'steady' | 'easing';
+  reposeStatus: string;
 }
+
+const TREND_MARK: Record<string, { icon: string; cls: string; title: string }> = {
+  rising: { icon: '↑', cls: 'text-red-500', title: 'Risk rising vs baseline' },
+  steady: { icon: '→', cls: 'text-gray-400', title: 'Steady near baseline' },
+  easing: { icon: '↓', cls: 'text-emerald-500', title: 'Easing / below baseline' },
+};
 
 const DOT: Record<string, string> = {
   MODERATE: 'bg-lime-500',
@@ -45,7 +53,10 @@ export function MiniRiskChip({ data, index = 0 }: { data: MiniRiskData; index?: 
       <div className="flex items-center gap-2 mb-1">
         <span className={`w-2 h-2 rounded-full ${DOT[data.riskLevel] ?? 'bg-gray-400'}`} />
         <span className="font-medium text-gray-900 dark:text-white text-sm truncate">{data.name}</span>
-        <span className="ml-auto text-xs font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+        <span className="ml-auto flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+          <span className={TREND_MARK[data.trend]?.cls} title={TREND_MARK[data.trend]?.title} aria-hidden>
+            {TREND_MARK[data.trend]?.icon}
+          </span>
           {shown.toFixed(1)}%
         </span>
       </div>
@@ -70,6 +81,7 @@ export function MiniRiskChip({ data, index = 0 }: { data: MiniRiskData; index?: 
             <div className="flex justify-between"><span>Avg. recurrence</span><span className="font-mono">~{data.recurrenceYears} yr</span></div>
             <div className="flex justify-between"><span>PHIVOLCS alert</span><span className="font-mono">AL{data.alertLevel}</span></div>
             <div className="flex justify-between"><span>Last eruption</span><span className="font-mono">{data.lastEruption || '—'}</span></div>
+            <div className="flex justify-between"><span>Repose</span><span className="font-mono capitalize">{data.reposeStatus.replace('-', ' ')}</span></div>
             <Link href={`/volcanoes/${data.slug}`} onClick={(e) => e.stopPropagation()}
               className="inline-block mt-1 text-indigo-600 dark:text-indigo-400 hover:underline">
               View details →
