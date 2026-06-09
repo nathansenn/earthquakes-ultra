@@ -35,40 +35,42 @@ export default async function GlobePage() {
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-800">
+      <div className="border-b border-white/10 bg-gradient-to-b from-gray-900 to-gray-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div>
               <nav className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                 <Link href="/" className="hover:text-red-400 transition-colors">Home</Link>
-                <span>/</span>
-                <span className="text-white">3D Globe</span>
+                <span className="text-gray-600">/</span>
+                <span className="text-gray-200">3D Globe</span>
               </nav>
-              <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
-                <span className="text-4xl">🌍</span>
-                Live Earthquake Globe
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-300 ring-1 ring-red-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  LIVE
+                </span>
+                Earthquake Globe
               </h1>
-              <p className="mt-2 text-gray-400">
-                Real-time global seismic activity from USGS, EMSC, JMA & GeoNet
+              <p className="mt-2 text-sm text-gray-400">
+                Real-time global seismic activity · USGS, EMSC, JMA &amp; GeoNet
               </p>
             </div>
-            <div className="flex gap-4">
-              <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-red-400">{earthquakes.length}</p>
-                <p className="text-xs text-gray-400">M1+ (24h)</p>
-              </div>
-              <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-orange-400">{lastHourCount}</p>
-                <p className="text-xs text-gray-400">Last Hour</p>
-              </div>
-              <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-yellow-400">{significantCount}</p>
-                <p className="text-xs text-gray-400">M5.0+</p>
-              </div>
-              <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-blue-400">{Object.keys(sourceCount).length}</p>
-                <p className="text-xs text-gray-400">Sources</p>
-              </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 lg:gap-3">
+              {[
+                { v: earthquakes.length, l: 'M1+ · 24h', c: 'text-red-400' },
+                { v: lastHourCount, l: 'Last hour', c: 'text-orange-400' },
+                { v: significantCount, l: 'M5.0+', c: 'text-yellow-400' },
+                { v: Object.keys(sourceCount).length, l: 'Sources', c: 'text-sky-400' },
+              ].map((s) => (
+                <div
+                  key={s.l}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center min-w-[88px]"
+                >
+                  <p className={`text-2xl font-bold tabular-nums ${s.c}`}>{s.v}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">{s.l}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

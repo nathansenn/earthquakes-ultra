@@ -35,24 +35,44 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar — subtle, low-contrast */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 130, 0.35) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--muted);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 4px;
+  background: rgba(120, 120, 130, 0.3);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
+  background: rgba(120, 120, 130, 0.55);
+  background-clip: content-box;
+}
+
+/* Brand text selection */
+::selection {
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  color: inherit;
+}
+
+/* Accessible keyboard focus ring (mouse clicks stay clean) */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Animation classes */
@@ -300,4 +320,45 @@ body {
 
 .animate-just-now {
   animation: just-now-pulse 1.5s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* UI polish utilities                                                 */
+/* ------------------------------------------------------------------ */
+
+/* Frosted-glass surface for overlays on imagery/3D (used by the globe) */
+.glass {
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+/* Consistent elevated card */
+.card-surface {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 16px -8px rgba(15, 23, 42, 0.12);
+}
+
+/* Smooth theme cross-fade (kept short to avoid jank) */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
