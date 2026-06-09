@@ -18,7 +18,7 @@
 
 import { Volcano } from '@/data/philippine-volcanoes';
 import { GlobalVolcano } from '@/data/global-volcanoes';
-import { PH_ERUPTION_HISTORY } from '@/data/eruption-history';
+import { PH_ERUPTION_HISTORY, EruptionRecord } from '@/data/eruption-history';
 
 export const CURRENT_YEAR = 2026;
 
@@ -170,6 +170,100 @@ export function globalBaseAnnualRate(volcano: GlobalVolcano): number {
   if ((volcano.vei ?? 0) >= 5) rate *= 0.7;
 
   return clampRate(rate);
+}
+
+// ----------------------------------------------------------------------------
+// Repose-time / renewal analysis (the historical "higher or lower" signal)
+// ----------------------------------------------------------------------------
+//
+// A homogeneous Poisson process is memoryless, but real volcanoes show
+// quasi-periodic repose: the conditional probability of erupting depends on the
+// time elapsed since the last eruption (Weibull/renewal models — Bebbington &
+// Lai 1996; Marzocchi & Bebbington 2012; Connor et al.). We apply a *bounded,
+// renewal-inspired* adjustment, and only when we have a data-derived mean
+// recurrence (confirmed-eruption count over a known record) — never from an
+// uncertain prior.
+
+export type ReposeStatus =
+  | 'recently-active' | 'within-window' | 'overdue' | 'long-overdue' | 'unknown';
+
+export interface ReposeAnalysis {
+  hasData: boolean;
+  yearsSinceLast: number | null;
+  meanRecurrenceYears: number | null;
+  reposeRatio: number | null;   // yearsSinceLast / meanRecurrence
+  factor: number;               // bounded multiplier applied to the rate
+  status: ReposeStatus;
+  interpretation: string;
+}
+
+export function reposeAnalysis(record: EruptionRecord | undefined): ReposeAnalysis {
+  const neutral: ReposeAnalysis = {
+    hasData: false, yearsSinceLast: null, meanRecurrenceYears: null, reposeRatio: null,
+    factor: 1, status: 'unknown',
+    interpretation: 'No data-derived recurrence interval — repose effect not modeled.',
+  };
+  if (!record?.historicalEruptions || !record.recordStartYear || record.lastEruptionYear == null) {
+    return neutral;
+  }
+
+  const span = Math.max(CURRENT_YEAR - record.recordStartYear, 30);
+  const meanRecurrence = span / record.historicalEruptions;
+  const yearsSinceLast = Math.max(0, CURRENT_YEAR - record.lastEruptionYear);
+  const ratio = yearsSinceLast / meanRecurrence;
+
+  let factor: number, status: ReposeStatus, interpretation: string;
+  const y = Math.round(yearsSinceLast);
+  const m = Math.round(meanRecurrence);
+  if (ratio < 0.3) {
+    factor = 0.9; status = 'recently-active';
+    interpretation = `Erupted recently (~${y} yr ago vs a ~${m}-yr average) — repose does not add near-term risk.`;
+  } else if (ratio < 1.3) {
+    factor = ratio < 0.8 ? 0.95 : 1.0; status = 'within-window';
+    interpretation = `Within its typical repose window (~${y} yr since last vs ~${m}-yr average).`;
+  } else if (ratio < 2.5) {
+    factor = 1.25; status = 'overdue';
+    interpretation = `Overdue: ~${y} yr since the last eruption vs a ~${m}-yr average — conditional probability is elevated.`;
+  } else {
+    factor = 1.45; status = 'long-overdue';
+    interpretation = `Well past its average repose (~${y} yr vs ~${m} yr) — markedly elevated conditional probability.`;
+  }
+
+  return {
+    hasData: true,
+    yearsSinceLast: y,
+    meanRecurrenceYears: m,
+    reposeRatio: Math.round(ratio * 100) / 100,
+    factor, status, interpretation,
+  };
+}
+
+/**
+ * Recent eruptive-episode signal: volcanic activity clusters in episodes, so
+ * several eruptions in the last decade raise near-term probability.
+ */
+export interface RecentEpisode {
+  count: number;     // distinct eruption years in the last 10 yr
+  factor: number;
+  interpretation: string;
+}
+
+export function recentEpisodeFactor(record: EruptionRecord | undefined): RecentEpisode {
+  if (!record) return { count: 0, factor: 1, interpretation: 'No recent eruptive episode on record.' };
+  const years = new Set<number>();
+  if (record.lastEruptionYear != null && CURRENT_YEAR - record.lastEruptionYear <= 10) {
+    years.add(record.lastEruptionYear);
+  }
+  for (const e of record.notableEruptions ?? []) {
+    if (CURRENT_YEAR - e.year <= 10) years.add(e.year);
+  }
+  const count = years.size;
+  const factor = count >= 3 ? 1.3 : count === 2 ? 1.15 : count === 1 ? 1.05 : 1.0;
+  const interpretation =
+    count >= 2 ? `${count} eruptions in the last 10 years — an active eruptive episode.`
+    : count === 1 ? 'One eruption in the last 10 years.'
+    : 'No eruptions in the last 10 years.';
+  return { count, factor, interpretation };
 }
 
 // ----------------------------------------------------------------------------

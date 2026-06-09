@@ -6,6 +6,7 @@ import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } fro
 import { fetchGlobalEarthquakes } from "@/lib/usgs-api";
 import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
 import { assessGlobalVolcano } from "@/lib/eruption-forecast";
+import { getEruptionRecord } from "@/data/eruption-history";
 import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
 import { RiskCard, RiskCardData, FactorRow } from "@/components/volcano/RiskCard";
 import { MiniRiskChip, MiniRiskData } from "@/components/volcano/MiniRiskChip";
@@ -85,6 +86,7 @@ function buildFactors(a: RiskAssessment): FactorRow[] {
 
 function toRiskCardData(a: RiskAssessment, slug: string, refTime: number): RiskCardData {
   const bv = a.bValueAnalysis;
+  const rec = getEruptionRecord(a.volcano.name);
   return {
     id: a.volcano.id,
     name: a.volcano.name,
@@ -142,6 +144,19 @@ function toRiskCardData(a: RiskAssessment, slug: string, refTime: number): RiskC
     },
     scientificNotes: a.scientificNotes,
     guidanceAction: a.strategicGuidance.action,
+    // Reasoning, evidence & historical/scientific context
+    riskDirection: a.riskDirection,
+    evidence: a.evidence,
+    repose: {
+      hasData: a.repose.hasData, status: a.repose.status,
+      yearsSinceLast: a.repose.yearsSinceLast, meanRecurrenceYears: a.repose.meanRecurrenceYears,
+      reposeRatio: a.repose.reposeRatio, interpretation: a.repose.interpretation,
+    },
+    eruptionStyle: rec?.eruptionStyle,
+    dominantVEI: rec?.dominantVEI,
+    notableEruptions: (rec?.notableEruptions ?? []).map(n => ({ year: n.year, vei: n.vei, note: n.note })),
+    recentUnrest: (rec?.recentUnrest ?? []).map(u => ({ kind: u.kind, note: u.note })),
+    references: (rec?.references ?? []).map(r => ({ label: r.label, url: r.url })),
   };
 }
 
@@ -158,6 +173,8 @@ function toMiniRiskData(a: RiskAssessment, slug: string): MiniRiskData {
     baseAnnualRate: a.factors.baseline,
     recurrenceYears: Math.max(1, Math.round(1 / a.factors.baseline)),
     lastEruption: a.volcano.lastEruption ?? '',
+    trend: a.riskDirection.trend,
+    reposeStatus: a.repose.status,
   };
 }
 
@@ -262,11 +279,14 @@ export default async function VolcanoAnalysisPage() {
             <span className="text-xl">🧠</span>
             <div className="text-sm text-indigo-800 dark:text-indigo-200">
               <strong>Methodology:</strong> Each Philippine volcano starts from a per-volcano baseline
-              eruption rate (Smithsonian GVP eruption history), modulated by its official PHIVOLCS alert
-              level and live PHIVOLCS/USGS seismicity — earthquake triggering (Nishimura 2017; Jenkins 2024),
-              depth migration, b-value, accelerating seismicity and swarms — then converted to a probability
-              with a Poisson event model. <strong>Not a deterministic prediction</strong>; probabilities are
-              statistical estimates. PHIVOLCS remains the authoritative source.
+              eruption rate (Smithsonian GVP eruption history), then weighs the full body of evidence —
+              its PHIVOLCS alert level, the time since its last eruption (Weibull/renewal repose model),
+              recent eruptive-episode clustering, and live seismicity (earthquake triggering — Nishimura
+              2017 / Jenkins 2024, depth migration, b-value, accelerating seismicity, swarms) — converting
+              the result to a probability with a Poisson event model. Every signal is shown below as an
+              <strong> evidence ledger</strong> with its direction (raises / lowers) and source, so you can
+              see exactly why each risk is higher or lower. <strong>Not a deterministic prediction</strong>;
+              probabilities are statistical estimates. PHIVOLCS remains the authoritative source.
             </div>
           </div>
         </div>
@@ -566,6 +586,14 @@ export default async function VolcanoAnalysisPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
                   <div><strong>Poisson event model</strong> (Bebbington; Marzocchi &amp; Bebbington 2012): rate &rarr; probability</div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">✓</span>
+                  <div><strong>Repose-time / renewal model</strong> (Bebbington &amp; Lai 1996; Connor et al.): time-since-last-eruption &rarr; conditional &ldquo;overdue&rdquo; probability</div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">✓</span>
+                  <div><strong>Multi-parameter unrest</strong> (Newhall; Sparks 2003): SO&#8322;, deformation, seismicity &amp; thermal as eruption precursors</div>
                 </li>
               </ul>
             </div>

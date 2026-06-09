@@ -11,8 +11,8 @@ import { PHILIPPINE_VOLCANOES, Volcano as PhVolcano, volcanoNameToSlug } from "@
 import { getPhilippinesEarthquakes, getDataFreshness } from "@/lib/db-queries";
 import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
 import { DataFreshness } from "@/components/ui/DataFreshness";
-import { getEruptionRecord } from "@/data/eruption-history";
-import { philippineBaseAnnualRate } from "@/lib/eruption-forecast";
+import { getEruptionRecord, type NotableEruption, type UnrestSignal, type ScienceRef } from "@/data/eruption-history";
+import { philippineBaseAnnualRate, reposeAnalysis } from "@/lib/eruption-forecast";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -49,6 +49,16 @@ interface UnifiedVolcano {
   recordedEruptions?: number;
   recordStartYear?: number;
   recurrenceYears?: number;
+  // Historical & scientific context
+  eruptionStyle?: string;
+  dominantVEI?: number;
+  notableEruptions?: NotableEruption[];
+  recentUnrest?: UnrestSignal[];
+  references?: ScienceRef[];
+  reposeStatus?: string;
+  reposeInterpretation?: string;
+  reposeYearsSinceLast?: number | null;
+  reposeMeanRecurrence?: number | null;
 }
 
 // Find volcano by slug from both databases
@@ -58,6 +68,7 @@ function getVolcanoBySlug(slug: string): UnifiedVolcano | undefined {
   if (phVolcano) {
     const rec = getEruptionRecord(phVolcano.name);
     const baseRate = philippineBaseAnnualRate(phVolcano);
+    const rp = reposeAnalysis(rec);
     return {
       id: phVolcano.id,
       name: phVolcano.name,
@@ -77,6 +88,15 @@ function getVolcanoBySlug(slug: string): UnifiedVolcano | undefined {
       recordedEruptions: rec?.historicalEruptions,
       recordStartYear: rec?.recordStartYear,
       recurrenceYears: Math.round(1 / baseRate),
+      eruptionStyle: rec?.eruptionStyle,
+      dominantVEI: rec?.dominantVEI,
+      notableEruptions: rec?.notableEruptions,
+      recentUnrest: rec?.recentUnrest,
+      references: rec?.references,
+      reposeStatus: rp.status,
+      reposeInterpretation: rp.interpretation,
+      reposeYearsSinceLast: rp.yearsSinceLast,
+      reposeMeanRecurrence: rp.meanRecurrenceYears,
       alertLevel: phVolcano.alertLevel,
       hydrothermalActivity: phVolcano.hydrothermalActivity,
       monitoringStations: phVolcano.monitoringStations,
@@ -409,6 +429,86 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                     Baseline eruption rate derived from Smithsonian GVP confirmed-eruption frequency.
                     Current eruption probability (incorporating PHIVOLCS alert level and live seismicity)
                     is on the <Link href="/volcanoes/analysis" className="text-indigo-600 dark:text-indigo-400 hover:underline">Risk Analysis dashboard</Link>.
+                  </p>
+                </div>
+              )}
+
+              {/* Historical & scientific context (Philippine volcanoes) */}
+              {volcano.isPhilippine && (volcano.eruptionStyle || (volcano.notableEruptions?.length ?? 0) > 0 || (volcano.recentUnrest?.length ?? 0) > 0) && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    🔬 Historical &amp; Scientific Context
+                  </h2>
+
+                  {volcano.eruptionStyle && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-700 dark:text-gray-200">{volcano.eruptionStyle}</p>
+                      {volcano.dominantVEI != null && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Typical explosivity ≈ VEI {volcano.dominantVEI}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Repose / "overdue" */}
+                  {volcano.reposeStatus && volcano.reposeStatus !== 'unknown' && (
+                    <div className="mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/40">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-800 dark:text-gray-100">🕰️ Repose status</span>
+                        <span className="capitalize font-semibold text-gray-700 dark:text-gray-200">{volcano.reposeStatus.replace('-', ' ')}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{volcano.reposeInterpretation}</p>
+                    </div>
+                  )}
+
+                  {/* Current unrest signals */}
+                  {(volcano.recentUnrest?.length ?? 0) > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">📍 Current unrest signals (PHIVOLCS, 2026)</h3>
+                      <ul className="space-y-1.5">
+                        {volcano.recentUnrest!.map((u, i) => (
+                          <li key={i} className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-2">
+                            <span className="font-semibold capitalize text-gray-700 dark:text-gray-200 shrink-0">{u.kind === 'so2' ? 'SO₂' : u.kind}:</span>
+                            <span>{u.note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Notable past eruptions */}
+                  {(volcano.notableEruptions?.length ?? 0) > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">⚡ Notable past eruptions</h3>
+                      <ul className="space-y-1.5">
+                        {volcano.notableEruptions!.map((n) => (
+                          <li key={n.year} className="flex items-start gap-2 text-xs">
+                            <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-200 w-10 shrink-0">{n.year}</span>
+                            {n.vei != null && (
+                              <span className="px-1.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">VEI {n.vei}</span>
+                            )}
+                            <span className="text-gray-600 dark:text-gray-300">{n.note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* References */}
+                  {(volcano.references?.length ?? 0) > 0 && (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">References: </span>
+                      {volcano.references!.map((r, i) => (
+                        <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mr-3">
+                          {r.label} ↗
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+                    Live risk direction, the full evidence ledger and seismic precursors are on the{' '}
+                    <Link href="/volcanoes/analysis" className="text-indigo-600 dark:text-indigo-400 hover:underline">Risk Analysis dashboard</Link>.
                   </p>
                 </div>
               )}

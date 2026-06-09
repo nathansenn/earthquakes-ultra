@@ -37,7 +37,21 @@ import {
   alertLevelFloors,
   estimateMc,
   riskLevelFromProbability,
+  reposeAnalysis,
+  recentEpisodeFactor,
+  type ReposeAnalysis,
 } from '@/lib/eruption-forecast';
+import { getEruptionRecord } from '@/data/eruption-history';
+
+// Plain-language meaning of each PHIVOLCS alert level (for the evidence ledger).
+const ALERT_REASON: Record<number, string> = {
+  0: 'No significant unrest — eruption not expected in the near term.',
+  1: 'Low-level unrest (abnormal) — slightly elevated chance of steam-driven activity.',
+  2: 'Increasing/probable magmatic unrest — heightened chance of eruption.',
+  3: 'Magma at shallow depth — hazardous eruption possible within days to weeks.',
+  4: 'Intense unrest — hazardous eruption imminent (within days).',
+  5: 'Hazardous eruption in progress.',
+};
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -118,9 +132,29 @@ export interface TriggeringAnalysis {
   }[];
 }
 
+// A single line of evidence in the risk reasoning ("why higher or lower").
+export interface RiskEvidence {
+  id: string;
+  label: string;
+  direction: 'increases' | 'decreases' | 'neutral';
+  strength: 'strong' | 'moderate' | 'slight' | 'none';
+  weight: number;     // multiplier applied to the rate (>1 raises, <1 lowers)
+  finding: string;    // what the data shows
+  reasoning: string;  // why it changes eruption risk
+  basis: string;      // scientific basis / source
+}
+
+// Overall direction of risk relative to the volcano's long-run baseline.
+export interface RiskDirection {
+  trend: 'rising' | 'steady' | 'easing';
+  vsBaseline: number;   // effective rate ÷ baseline rate
+  summary: string;
+  topDrivers: string[];
+}
+
 export interface RiskAssessment {
   volcano: Volcano;
-  
+
   // Core probability
   probability30Day: number;     // P(eruption in 30 days)
   probability1Year: number;     // P(eruption in 1 year)
@@ -148,6 +182,8 @@ export interface RiskAssessment {
     hydrothermalMultiplier: number;
     recentActivityMultiplier: number;
     alertMultiplier: number;      // PHIVOLCS alert-level rate factor
+    reposeFactor: number;         // renewal / "overdue" adjustment
+    recentEpisodeFactor: number;  // recent eruptive-episode clustering
     combinedMultiplier: number;   // product of seismic precursor multipliers
     effectiveAnnualRate: number;  // λ used in the Poisson model
   };
@@ -165,6 +201,11 @@ export interface RiskAssessment {
     energyRelease30Day: number; // Joules
   };
   
+  // Reasoning & evidence
+  repose: ReposeAnalysis;
+  riskDirection: RiskDirection;
+  evidence: RiskEvidence[];
+
   // Output
   assessmentDate: Date;
   dataWindow: { start: Date; end: Date };
@@ -1135,8 +1176,15 @@ export function assessVolcanoRisk(
   // Official PHIVOLCS alert level — the dominant near-term unrest signal.
   const alertMultiplier = alertLevelRateFactor(volcano.alertLevel);
 
+  // Historical signals from the curated GVP/PHIVOLCS record: repose-time
+  // (renewal / "overdue") and recent eruptive-episode clustering.
+  const eruptionRecord = getEruptionRecord(volcano.name);
+  const repose = reposeAnalysis(eruptionRecord);
+  const episode = recentEpisodeFactor(eruptionRecord);
+
   // Poisson event model: P(>=1 eruption in t) = 1 - exp(-lambda*t)
-  const effectiveAnnualRate = baseline * combinedMultiplier * alertMultiplier;
+  const effectiveAnnualRate =
+    baseline * combinedMultiplier * alertMultiplier * repose.factor * episode.factor;
   const modelP1Year = poissonProbability(effectiveAnnualRate, 1);
   const modelP30Day = poissonProbability(effectiveAnnualRate, 30 / 365.25);
 
@@ -1170,10 +1218,113 @@ export function assessVolcanoRisk(
     hydrothermalMultiplier,
     recentActivityMultiplier: Math.round(recentActivityMultiplier * 1000) / 1000,
     alertMultiplier,
+    reposeFactor: Math.round(repose.factor * 1000) / 1000,
+    recentEpisodeFactor: Math.round(episode.factor * 1000) / 1000,
     combinedMultiplier: Math.round(combinedMultiplier * 100) / 100,
     effectiveAnnualRate: Math.round(effectiveAnnualRate * 10000) / 10000,
   };
-  
+
+  // ----- Evidence ledger: every signal, its direction, and the reasoning -----
+  const mkEvidence = (
+    id: string, label: string, weight: number, finding: string, reasoning: string, basis: string,
+  ): RiskEvidence => {
+    const direction: RiskEvidence['direction'] =
+      weight > 1.05 ? 'increases' : weight < 0.95 ? 'decreases' : 'neutral';
+    const dev = Math.abs(Math.log(weight || 1));
+    const strength: RiskEvidence['strength'] =
+      direction === 'neutral' ? 'none' : dev >= 1.2 ? 'strong' : dev >= 0.5 ? 'moderate' : 'slight';
+    return { id, label, direction, strength, weight: Math.round(weight * 1000) / 1000, finding, reasoning, basis };
+  };
+
+  const recurrenceYears = Math.max(1, Math.round(1 / baseline));
+  const bv = bValueAnalysis;
+  const dm = depthMigration;
+  const ac = acceleration;
+  const trig = triggeringAnalysis;
+
+  const evidence: RiskEvidence[] = [
+    mkEvidence('baseline', 'Long-run baseline frequency', 1,
+      eruptionRecord?.historicalEruptions && eruptionRecord.recordStartYear
+        ? `${eruptionRecord.historicalEruptions} eruptions since ${eruptionRecord.recordStartYear} → ~1 per ${recurrenceYears} yr`
+        : `Status-based estimate (~1 per ${recurrenceYears} yr)`,
+      'Anchor — the average eruption frequency this volcano has shown historically.',
+      'Smithsonian Global Volcanism Program eruption record'),
+    mkEvidence('alert', `PHIVOLCS alert level ${volcano.alertLevel}`, alertMultiplier,
+      `Alert Level ${volcano.alertLevel}`,
+      ALERT_REASON[volcano.alertLevel] ?? 'Current official unrest classification.',
+      'PHIVOLCS Volcano Alert Level System'),
+    mkEvidence('repose', 'Time since last eruption (repose)', repose.factor,
+      repose.hasData
+        ? `~${repose.yearsSinceLast} yr since last vs a ~${repose.meanRecurrenceYears}-yr average (ratio ${repose.reposeRatio})`
+        : 'Recurrence interval not well constrained',
+      repose.interpretation,
+      'Weibull/renewal repose model (Bebbington & Lai 1996; Marzocchi & Bebbington 2012)'),
+    mkEvidence('episode', 'Recent eruptive episode', episode.factor,
+      episode.interpretation,
+      'Volcanic activity clusters in episodes — recent eruptions raise near-term probability.',
+      'GVP eruption history'),
+    mkEvidence('triggering', 'Large-earthquake triggering', triggeringMultiplier,
+      trig.triggerEvents.length
+        ? `${trig.triggerEvents.length} qualifying large quake(s); static ΔCFS ~${trig.staticStressChange.toFixed(3)} bar`
+        : 'No qualifying large earthquakes in range/time window',
+      'Large nearby earthquakes can perturb the magma/hydrothermal system (static + dynamic stress).',
+      'Nishimura (2017) GRL 44; Jenkins et al. (2024) Volcanica'),
+    mkEvidence('seismicity', 'Recent local seismicity', recentActivityMultiplier,
+      `${stats.nearFieldCount} events within 15 km · ${stats.eventRate30Day.toFixed(1)}/day`,
+      'Elevated shallow, near-field seismicity can indicate magma or fluid movement.',
+      'Volcano-seismic monitoring (PHIVOLCS / USGS)'),
+    mkEvidence('bvalue', 'b-value (stress state)', bValueMultiplier,
+      bv.sampleSize >= 20 ? `b = ${bv.bValue} (${bv.anomaly}) · Mc ${bv.mc.toFixed(1)} · n=${bv.sampleSize}` : 'Insufficient events for a reliable b-value',
+      bv.interpretation,
+      'Gutenberg–Richter b-value (Aki 1965; Wiemer & Wyss 2000)'),
+    mkEvidence('depth', 'Magma depth migration', depthMigrationMultiplier,
+      dm.detected ? `${Math.abs(dm.rate).toFixed(2)} km/day ${dm.direction} (${dm.startDepth.toFixed(1)}→${dm.currentDepth.toFixed(1)} km)` : 'No coherent migration detected',
+      dm.interpretation,
+      'Hypocenter migration (Roman & Cashman 2006)'),
+    mkEvidence('acceleration', 'Accelerating seismicity', accelerationMultiplier,
+      ac.detected ? `${ac.type.replace('_', ' ')} (R²=${ac.rsquared.toFixed(2)})` : 'No acceleration detected',
+      'Accelerating seismicity can precede failure of the edifice/conduit.',
+      'Material-failure forecasting (Voight 1988; Kilburn 2003)'),
+    mkEvidence('clusters', 'Seismic clusters / swarms', clusterMultiplier,
+      clusters.length ? `${clusters.length} cluster(s); ${clusters.filter(c => c.isSwarm).length} swarm-like` : 'No significant clustering',
+      'Swarms and clusters indicate stress concentration or fluid migration beneath the edifice.',
+      'Seismic cluster analysis'),
+    mkEvidence('hydrothermal', 'Hydrothermal system', hydrothermalMultiplier,
+      `Activity level ${volcano.hydrothermalActivity}/3`,
+      'A vigorous open hydrothermal system raises the chance of steam-driven (phreatic) activity.',
+      'PHIVOLCS hydrothermal monitoring'),
+  ];
+
+  // ----- Overall risk direction relative to the long-run baseline -----
+  const vsBaseline = baseline > 0 ? effectiveAnnualRate / baseline : 1;
+  // Trend reflects *active* unrest (time-varying signals) — NOT static
+  // background properties like the hydrothermal system or regional b-value.
+  const activeElevation =
+    alertMultiplier * episode.factor * triggeringMultiplier * depthMigrationMultiplier *
+    accelerationMultiplier * clusterMultiplier * recentActivityMultiplier;
+  const dynamicDrivers = evidence
+    .filter(e => e.direction === 'increases' && !['hydrothermal', 'bvalue', 'baseline'].includes(e.id))
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 3)
+    .map(e => e.label);
+  const trend: RiskDirection['trend'] =
+    activeElevation >= 1.4 ? 'rising'
+      : (activeElevation <= 1.12 && volcano.alertLevel === 0 && repose.factor <= 0.95) ? 'easing'
+        : 'steady';
+  const topDrivers = dynamicDrivers.length
+    ? dynamicDrivers
+    : evidence.filter(e => e.direction === 'increases' && e.id !== 'baseline')
+        .sort((a, b) => b.weight - a.weight).slice(0, 2).map(e => e.label);
+  const summary =
+    trend === 'rising'
+      ? `Active unrest puts this ~${vsBaseline.toFixed(1)}× above the long-run baseline${topDrivers.length ? `, driven by ${topDrivers.join(', ').toLowerCase()}` : ''}.`
+      : trend === 'easing'
+        ? `Recently active with no current precursors — at or below the typical baseline.`
+        : `Near the long-run baseline — only background factors are mildly elevated.`;
+  const riskDirection: RiskDirection = {
+    trend, vsBaseline: Math.round(vsBaseline * 100) / 100, summary, topDrivers,
+  };
+
   // Build scientific notes
   const scientificNotes: string[] = [];
   
@@ -1213,6 +1364,9 @@ export function assessVolcanoRisk(
     clusters,
     factors,
     stats,
+    repose,
+    riskDirection,
+    evidence,
     assessmentDate: currentDate,
     dataWindow: {
       start: new Date(now - days90),
