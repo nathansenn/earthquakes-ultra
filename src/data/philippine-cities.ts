@@ -168,7 +168,7 @@ export const philippineCities: City[] = [
   { name: "Panabo", slug: "panabo", region: "Davao Region", regionCode: "XI", province: "Davao del Norte", latitude: 7.3078, longitude: 125.6844, population: 184599 },
   { name: "Tagum", slug: "tagum", region: "Davao Region", regionCode: "XI", province: "Davao del Norte", latitude: 7.4478, longitude: 125.8078, population: 296195 },
   { name: "Samal", slug: "samal", region: "Davao Region", regionCode: "XI", province: "Davao del Norte", latitude: 7.0833, longitude: 125.7333, population: 119057 },
-  { name: "Davao City", slug: "davao-city", region: "Davao Region", regionCode: "XI", province: "Davao del Sur", latitude: 7.1907, longitude: 125.4553, population: 1776949, isHCC: true },
+  { name: "Davao City", slug: "davao-city", region: "Davao Region", regionCode: "XI", province: "Davao del Sur", latitude: 7.0731, longitude: 125.6128, population: 1848947, isHCC: true },
   { name: "Digos", slug: "digos", region: "Davao Region", regionCode: "XI", province: "Davao del Sur", latitude: 6.7500, longitude: 125.3500, population: 179186 },
   { name: "Mati", slug: "mati", region: "Davao Region", regionCode: "XI", province: "Davao Oriental", latitude: 6.9500, longitude: 126.2167, population: 141141 },
 
