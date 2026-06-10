@@ -39,3 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+data/earthquakes.db-wal
+data/earthquakes.db-shm
