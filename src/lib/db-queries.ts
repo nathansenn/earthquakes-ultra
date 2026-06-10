@@ -285,24 +285,26 @@ export function getDatabaseInfo() {
 }
 
 /**
- * Get the last update time for PHIVOLCS data
- * Returns the timestamp of the most recent earthquake in the database
+ * Get the last update time of the earthquake data (newest row, any source),
+ * plus the PHIVOLCS row count for source-specific indicators.
  */
 export function getLastUpdateTime(): { lastUpdate: Date | null; phivolcsCount: number } {
   try {
     const db = new Database(DB_PATH, { readonly: true });
-    
-    // Get most recent PHIVOLCS entry and count
+
+    // Freshness = the newest row from ANY source. The in-process refresher
+    // (src/lib/data-refresh.ts) keeps the usgs series current; measuring only
+    // PHIVOLCS rows (the old behavior) flagged the whole site as stale
+    // whenever that one scraper lagged, even with current data on the pages.
     const result = db.prepare(`
-      SELECT 
+      SELECT
         MAX(timestamp) as lastTimestamp,
-        COUNT(*) as count
-      FROM earthquakes 
-      WHERE source = 'phivolcs'
+        SUM(CASE WHEN source = 'phivolcs' THEN 1 ELSE 0 END) as count
+      FROM earthquakes
     `).get() as { lastTimestamp: number | null; count: number };
-    
+
     db.close();
-    
+
     return {
       lastUpdate: result.lastTimestamp ? new Date(result.lastTimestamp) : null,
       phivolcsCount: result.count || 0,

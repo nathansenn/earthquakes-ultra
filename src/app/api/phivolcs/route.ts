@@ -206,32 +206,40 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/phivolcs/scrape - Trigger a scrape (protected)
+// POST /api/phivolcs - Trigger a data refresh (protected)
+//
+// Historical note: this used to launch the Puppeteer-based PHIVOLCS scraper,
+// which cannot run in the production image (no system Chromium) — the reason
+// the database silently went stale. It now triggers the in-process USGS
+// refresh (see src/lib/data-refresh.ts). PHIVOLCS micro-seismicity (M1–3)
+// still requires running scrapers/phivolcs-scraper.ts on a host with Chromium,
+// since earthquake.phivolcs.dost.gov.ph returns 503 to plain HTTP clients.
 export async function POST(request: NextRequest) {
   // Check for API key (simple protection)
   const apiKey = request.headers.get('x-api-key');
   const expectedKey = process.env.SCRAPER_API_KEY;
-  
+
   if (expectedKey && apiKey !== expectedKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  
+
   try {
-    // Dynamic import the scraper
-    const { runScraper } = await import('../../../../scrapers/phivolcs-scraper');
-    
-    const result = await runScraper();
-    
+    const { refreshEarthquakeData } = await import('@/lib/data-refresh');
+    const result = await refreshEarthquakeData('api:phivolcs-compat');
+
     return NextResponse.json({
       ...result,
-      message: result.success ? 'Scrape completed successfully' : 'Scrape failed',
-    });
-    
+      message: result.success
+        ? `Refresh completed: ${result.inserted} new, ${result.updated} updated (USGS)`
+        : 'Refresh failed',
+      note: 'PHIVOLCS micro-seismicity requires the external Puppeteer scraper (scrapers/phivolcs-scraper.ts).',
+    }, { status: result.success ? 200 : 502 });
+
   } catch (error: any) {
-    console.error('Scrape trigger error:', error);
+    console.error('Refresh trigger error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to run scraper',
+      error: error.message || 'Failed to run refresh',
     }, { status: 500 });
   }
 }
