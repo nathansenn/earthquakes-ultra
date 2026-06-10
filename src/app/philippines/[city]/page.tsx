@@ -16,7 +16,8 @@ import {
   getTimeAgo,
   getMagnitudeIntensity,
 } from "@/lib/usgs-api";
-import { getPhilippinesEarthquakes } from "@/lib/db-queries";
+import { getPhilippinesEarthquakes, getDataFreshness } from "@/lib/db-queries";
+import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { getFaultLinesNearLocation, calculateSeismicRisk, philippineFaultLines } from "@/data/fault-lines";
 import { NATIONAL_EMERGENCY_CONTACTS, REGIONAL_EMERGENCY_CONTACTS } from "@/data/educational-content";
@@ -118,9 +119,13 @@ export default async function CityPage({ params }: Props) {
 
   // Calculate stats
   const stats = calculateStats(earthquakes);
-  
-  // Calculate seismic risk
-  const seismicRisk = calculateSeismicRisk(city.latitude, city.longitude);
+
+  // How fresh is the underlying earthquake snapshot.
+  const freshness = getDataFreshness();
+
+  // Calculate seismic risk — blends nearby fault/trench hazard with the
+  // observed recent seismicity around the city (evidence-based).
+  const seismicRisk = calculateSeismicRisk(city.latitude, city.longitude, earthquakes);
   
   // Get nearby fault lines
   const nearbyFaults = getFaultLinesNearLocation(city.latitude, city.longitude, 150);
@@ -252,6 +257,9 @@ export default async function CityPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Data freshness — the earthquake snapshot may be behind real-time */}
+      <StaleDataBanner latest={freshness.latest} ageDays={freshness.ageDays} isStale={freshness.isStale} />
 
       {/* Risk Assessment Banner */}
       <section className={`border-b ${riskBgColors[seismicRisk.level]}`}>

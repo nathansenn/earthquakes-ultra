@@ -285,7 +285,7 @@ function deg2rad(deg: number): number {
 }
 
 // Calculate seismic risk level for a location
-export function calculateSeismicRisk(latitude: number, longitude: number): {
+export function calculateSeismicRisk(latitude: number, longitude: number, observed?: { magnitude: number }[]): {
   level: 'very-high' | 'high' | 'moderate' | 'low';
   score: number;
   nearestFault: FaultLine | null;
@@ -293,37 +293,55 @@ export function calculateSeismicRisk(latitude: number, longitude: number): {
 } {
   let minDistance = Infinity;
   let nearestFault: FaultLine | null = null;
-  let totalRiskScore = 0;
-  
+  let faultScore = 0;
+
   for (const fault of philippineFaultLines) {
     const distance = getDistanceToFault(latitude, longitude, fault);
-    
+
     if (distance < minDistance) {
       minDistance = distance;
       nearestFault = fault;
     }
-    
-    // Add risk score based on proximity to each active fault
+
+    // Risk from proximity to each active fault/trench. Large subduction
+    // megathrusts (e.g. the Philippine and Cotabato trenches) produce damaging
+    // shaking far beyond 100 km, so the influence radius scales with the
+    // source's maximum historical magnitude rather than a flat 100 km cutoff.
     if (fault.type === 'active') {
-      const proximityScore = Math.max(0, 100 - distance) / 100;
-      const magnitudeWeight = (fault.maxHistoricalMagnitude || 6.0) / 8.0;
-      totalRiskScore += proximityScore * magnitudeWeight * 20;
+      const maxMag = fault.maxHistoricalMagnitude || 6.0;
+      const influenceKm = maxMag * 32;                       // M8 → ~256 km, M7 → ~224 km
+      const proximity = Math.max(0, 1 - distance / influenceKm);
+      faultScore += proximity * (maxMag / 8) * 32;
     }
   }
-  
-  // Add base risk for being in seismically active region
-  totalRiskScore += 10;
-  
-  // Normalize score
-  const score = Math.min(100, Math.round(totalRiskScore));
-  
+
+  // Base risk for being in the broadly seismic Philippine archipelago.
+  faultScore += 8;
+
+  // Evidence-based component: recent observed seismicity near the location.
+  // A place with sustained M4+ activity and large recent events is demonstrably
+  // hazardous regardless of how the mapped faults happen to be drawn.
+  let observedScore = 0;
+  if (observed && observed.length) {
+    const maxMag = Math.max(0, ...observed.map(e => e.magnitude));
+    const m4 = observed.filter(e => e.magnitude >= 4).length;
+    const m5 = observed.filter(e => e.magnitude >= 5).length;
+    const m6 = observed.filter(e => e.magnitude >= 6).length;
+    observedScore = Math.min(100,
+      m6 * 20 + m5 * 7 + m4 * 1.2 +
+      (maxMag >= 7 ? 30 : maxMag >= 6 ? 20 : maxMag >= 5 ? 10 : 0));
+  }
+
+  // Fault hazard sets a floor; sustained observed activity can only raise it.
+  const score = Math.min(100, Math.round(Math.max(faultScore, faultScore * 0.4 + observedScore)));
+
   // Determine risk level
   let level: 'very-high' | 'high' | 'moderate' | 'low';
-  if (score >= 70) level = 'very-high';
-  else if (score >= 50) level = 'high';
-  else if (score >= 30) level = 'moderate';
+  if (score >= 65) level = 'very-high';
+  else if (score >= 42) level = 'high';
+  else if (score >= 22) level = 'moderate';
   else level = 'low';
-  
+
   return {
     level,
     score,
