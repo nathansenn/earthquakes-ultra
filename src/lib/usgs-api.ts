@@ -596,3 +596,27 @@ export function getMMIDescription(intensity: number): string {
   };
   return descriptions[intensity] || 'Unknown';
 }
+
+/**
+ * Fetch a single event from USGS by its event id and process it. Used as a
+ * fallback for earthquake detail pages whose id isn't in the local DB
+ * (e.g. global events shown via the live API). Accepts either the raw USGS
+ * event id ("us6000s5d3") or the DB-prefixed form ("usgs_us6000s5d3").
+ */
+export async function fetchUSGSEventById(id: string): Promise<ProcessedEarthquake | null> {
+  const eventId = id.replace(/^usgs_/, '');
+  // Only USGS-sourced ids can be resolved this way.
+  if (!/^[a-z]{2}\d/i.test(eventId)) return null;
+  try {
+    const res = await fetch(
+      `${USGS_BASE_URL}?format=geojson&eventid=${encodeURIComponent(eventId)}`,
+      { headers: { 'User-Agent': 'earthquakes-ultra/1.0' }, signal: AbortSignal.timeout(15000), next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return null;
+    const feature = (await res.json()) as USGSEarthquake;
+    if (!feature?.properties || !feature.geometry) return null;
+    return processEarthquake(feature);
+  } catch {
+    return null;
+  }
+}

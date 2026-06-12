@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import { ProcessedEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
 
@@ -205,9 +206,12 @@ export function EarthquakeTable({
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-xs">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      <Link
+                        href={`/earthquakes/${encodeURIComponent(eq.id)}`}
+                        className="text-sm font-medium text-gray-900 dark:text-white truncate block hover:text-red-600 dark:hover:text-red-400 hover:underline"
+                      >
                         {eq.place || "Unknown location"}
-                      </p>
+                      </Link>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {eq.latitude.toFixed(3)}°, {eq.longitude.toFixed(3)}°
                       </p>
@@ -236,17 +240,15 @@ export function EarthquakeTable({
                     </td>
                   )}
                   <td className="px-4 py-3 text-right">
-                    <a
-                      href={eq.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                    <Link
+                      href={`/earthquakes/${encodeURIComponent(eq.id)}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                     >
-                      USGS
+                      Details
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                    </a>
+                    </Link>
                   </td>
                 </tr>
               ))}

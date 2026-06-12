@@ -8,11 +8,14 @@ import {
   GlobalVolcano,
 } from "@/data/global-volcanoes";
 import { PHILIPPINE_VOLCANOES, Volcano as PhVolcano, volcanoNameToSlug } from "@/data/philippine-volcanoes";
-import { getPhilippinesEarthquakes, getDataFreshness } from "@/lib/db-queries";
-import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
+import { getPhilippinesEarthquakes, getDataFreshness, getDataReferenceTime } from "@/lib/db-queries";
+import { getDistanceFromLatLonInKm, philippineCities } from "@/data/philippine-cities";
 import { DataFreshness } from "@/components/ui/DataFreshness";
 import { getEruptionRecord, type NotableEruption, type UnrestSignal, type ScienceRef } from "@/data/eruption-history";
-import { philippineBaseAnnualRate, reposeAnalysis } from "@/lib/eruption-forecast";
+import { philippineBaseAnnualRate, reposeAnalysis, assessGlobalVolcano } from "@/lib/eruption-forecast";
+import { assessVolcanoRisk, type Earthquake } from "@/lib/volcanic-prediction-v2";
+import { RiskCard, type RiskCardData } from "@/components/volcano/RiskCard";
+import { toRiskCardData } from "@/components/volcano/risk-card-data";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -200,6 +203,37 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
     }
   }
 
+  // Run this volcano through the prediction model.
+  const referenceTime = getDataReferenceTime();
+  let phRiskCard: RiskCardData | null = null;
+  let globalAssessment: ReturnType<typeof assessGlobalVolcano> | null = null;
+  let nearbyCities: { name: string; slug: string; distance: number; population: number }[] = [];
+
+  if (volcano.isPhilippine) {
+    const phRaw = PHILIPPINE_VOLCANOES.find((v) => volcanoNameToSlug(v.name) === slug);
+    if (phRaw) {
+      try {
+        const rawEqs = getPhilippinesEarthquakes(30, 2.0, 5000);
+        const eqs: Earthquake[] = rawEqs.map((e) => ({
+          id: e.id, magnitude: e.magnitude, depth_km: e.depth,
+          latitude: e.latitude, longitude: e.longitude, timestamp: e.time, location: e.place || 'Unknown',
+        }));
+        const assessment = assessVolcanoRisk(phRaw, eqs, new Date(referenceTime));
+        phRiskCard = toRiskCardData(assessment, slug, referenceTime);
+      } catch (e) {
+        console.error('Risk assessment failed:', e);
+      }
+    }
+    nearbyCities = philippineCities
+      .map((c) => ({ name: c.name, slug: c.slug, population: c.population, distance: getDistanceFromLatLonInKm(volcano.latitude, volcano.longitude, c.latitude, c.longitude) }))
+      .filter((c) => c.distance <= 100)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 6);
+  } else {
+    const gRaw = GLOBAL_VOLCANOES.find((v) => volcanoToSlug(v) === slug);
+    if (gRaw) globalAssessment = assessGlobalVolcano(gRaw);
+  }
+
   // How fresh the nearby-earthquake data is (Philippine volcanoes only).
   const freshness = getDataFreshness();
 
@@ -285,6 +319,70 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Live risk assessment — every volcano is run through the model */}
+              {phRiskCard && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                    🔮 Eruption Risk Assessment
+                  </h2>
+                  <RiskCard data={phRiskCard} />
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                    Modeled from PHIVOLCS alert level + live seismicity + eruption history.
+                    See the <Link href="/volcanoes/analysis" className="text-indigo-600 dark:text-indigo-400 hover:underline">Risk Analysis dashboard</Link> for all volcanoes side by side.
+                  </p>
+                </div>
+              )}
+
+              {/* Baseline eruption probability (global volcanoes — no live seismic feed) */}
+              {globalAssessment && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    🔮 Eruption Risk Assessment
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{globalAssessment.probability1Year}%</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">1-year probability</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{globalAssessment.probability30Day}%</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">30-day</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">~{globalAssessment.recurrenceYears}y</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Avg. recurrence</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-base font-bold text-gray-900 dark:text-white">{globalAssessment.riskLevel.replace('_', ' ')}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Risk level</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                    Baseline Poisson estimate from eruption status, recency of last eruption and explosivity
+                    (VEI). Confidence: {globalAssessment.confidence.toLowerCase()} — no live seismic monitoring feed for this volcano.
+                    Philippine volcanoes additionally use live PHIVOLCS alert levels and seismicity — see the{" "}
+                    <Link href="/volcanoes/analysis" className="text-indigo-600 dark:text-indigo-400 hover:underline">Risk Analysis dashboard</Link>.
+                  </p>
+                </div>
+              )}
+
+              {/* Nearby population centres (Philippine volcanoes) */}
+              {nearbyCities.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">🏙️ Nearby cities</h2>
+                  <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {nearbyCities.map((c) => (
+                      <li key={c.slug}>
+                        <Link href={`/philippines/${c.slug}`} className="flex items-center justify-between gap-2 text-sm group">
+                          <span className="text-gray-700 dark:text-gray-200 group-hover:text-red-600 dark:group-hover:text-red-400 truncate">{c.name}</span>
+                          <span className="text-gray-400 shrink-0">{c.distance.toFixed(0)} km</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Key Stats */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
