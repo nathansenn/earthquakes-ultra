@@ -1,9 +1,21 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority, RISK_LEVEL_DESCRIPTIONS, volcanoNameToSlug } from "@/data/philippine-volcanoes";
+import { PHILIPPINE_VOLCANOES, volcanoNameToSlug } from "@/data/philippine-volcanoes";
 import { getPhilippinesEarthquakes, getDataReferenceTime, getDataFreshness } from "@/lib/db-queries";
-import { assessAllVolcanoes, Earthquake, RiskAssessment } from "@/lib/volcanic-prediction-v2";
+import { assessAllVolcanoes, Earthquake } from "@/lib/volcanic-prediction-v2";
 import { DataFreshness, StaleDataBanner } from "@/components/ui/DataFreshness";
+
+// Legend bands mirror RISK_THRESHOLDS in lib/eruption-forecast (yearly
+// eruption probability), with concise "what to do" guidance per level.
+const RISK_LEGEND: { level: string; label: string; range: string; todo: string }[] = [
+  { level: 'CRITICAL', label: 'Critical', range: '≥50%', todo: 'Follow PHIVOLCS evacuation orders immediately' },
+  { level: 'VERY_HIGH', label: 'Very High', range: '35–50%', todo: 'Review & update emergency plans now' },
+  { level: 'HIGH', label: 'High', range: '20–35%', todo: 'Know your evacuation routes' },
+  { level: 'ELEVATED', label: 'Elevated', range: '10–20%', todo: 'Monitor official PHIVOLCS bulletins' },
+  { level: 'MODERATE', label: 'Moderate', range: '5–10%', todo: 'Keep an emergency kit ready' },
+  { level: 'LOW', label: 'Low', range: '2–5%', todo: 'Maintain general awareness' },
+  { level: 'BACKGROUND', label: 'Background', range: '<2%', todo: 'Standard volcanic-area preparedness' },
+];
 
 export const metadata: Metadata = {
   title: "Philippine Volcanoes | Strategic Monitoring Dashboard",
@@ -110,8 +122,8 @@ export default async function VolcanoesPage() {
               <p className="text-2xl font-bold">{PHILIPPINE_VOLCANOES.length}</p>
               <p className="text-sm text-orange-100">Volcanoes Monitored</p>
             </div>
-            <div className={`${veryHighRisk.length > 0 ? 'bg-red-500/30' : 'bg-white/10'} rounded-xl p-4 text-center`}>
-              <p className="text-2xl font-bold">{veryHighRisk.length + highRisk.length}</p>
+            <div className={`${criticalRisk.length + veryHighRisk.length > 0 ? 'bg-red-500/30' : 'bg-white/10'} rounded-xl p-4 text-center`}>
+              <p className="text-2xl font-bold">{criticalRisk.length + veryHighRisk.length + highRisk.length}</p>
               <p className="text-sm text-orange-100">Elevated Attention</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
@@ -119,8 +131,8 @@ export default async function VolcanoesPage() {
               <p className="text-sm text-orange-100">Earthquakes Analyzed</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold">24h</p>
-              <p className="text-sm text-orange-100">Update Frequency</p>
+              <p className="text-2xl font-bold">~15m</p>
+              <p className="text-sm text-orange-100">Data Refresh</p>
             </div>
           </div>
         </div>
@@ -134,8 +146,8 @@ export default async function VolcanoesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Understanding the Model:</strong> These assessments combine seismic data with peer-reviewed triggering models. 
-              &quot;Very High&quot; means ~35-65% probability over a multi-year window - NOT that an eruption is imminent. 
+              <strong>Understanding the Model:</strong> These assessments combine seismic data with peer-reviewed triggering models.
+              &quot;Very High&quot; means a ~35–50% modeled probability within a year - NOT that an eruption is imminent.
               The purpose is strategic planning, not panic. PHIVOLCS is the official authority for volcanic hazards.
             </div>
           </div>
@@ -159,13 +171,19 @@ export default async function VolcanoesPage() {
               label="Seismic data"
             />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(RISK_LEVEL_DESCRIPTIONS).map(([key, desc]) => (
-              <div key={key} className="flex items-start gap-2">
-                <div className={`w-3 h-3 rounded-full ${getRiskColor(key)} mt-1`} />
-                <div>
-                  <p className="font-medium text-sm text-gray-900 dark:text-white">{desc.label}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{desc.action.split(' - ')[0]}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-3xl">
+            Levels reflect the modeled probability of an eruption <strong>within the next year</strong>. They are
+            statistical estimates over multi-year windows, not imminent forecasts — PHIVOLCS alert levels remain authoritative.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {RISK_LEGEND.map((row) => (
+              <div key={row.level} className="flex items-start gap-2 rounded-lg bg-gray-50 dark:bg-gray-900/40 p-3">
+                <div className={`w-3 h-3 rounded-full ${getRiskColor(row.level)} mt-1 shrink-0`} />
+                <div className="min-w-0">
+                  <p className="font-medium text-sm text-gray-900 dark:text-white">
+                    {row.label} <span className="font-normal text-gray-400 tabular-nums">· {row.range}/yr</span>
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{row.todo}</p>
                 </div>
               </div>
             ))}
@@ -237,14 +255,22 @@ export default async function VolcanoesPage() {
                     </p>
                   </div>
 
-                  {/* Key Factors */}
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    <strong>Contributing factors:</strong>{" "}
-                    {assessment.factors.triggeringMultiplier > 1.1 && `Large EQ trigger (${assessment.factors.triggeringMultiplier}x) • `}
-                    {assessment.factors.bValueMultiplier > 1.1 && `b-value anomaly (${assessment.factors.bValueMultiplier}x) • `}
-                    {assessment.factors.clusterMultiplier > 1 && `Cluster effects (${assessment.factors.clusterMultiplier}x) • `}
-                    {assessment.factors.hydrothermalMultiplier > 1.5 && `Active hydrothermal system`}
-                  </div>
+                  {/* Key Factors — built as a list so separators never dangle */}
+                  {(() => {
+                    const f = assessment.factors;
+                    const contributing = [
+                      f.triggeringMultiplier > 1.1 && `Large EQ trigger (${f.triggeringMultiplier}×)`,
+                      f.bValueMultiplier > 1.1 && `b-value anomaly (${f.bValueMultiplier}×)`,
+                      f.clusterMultiplier > 1 && `Cluster effects (${f.clusterMultiplier}×)`,
+                      f.hydrothermalMultiplier > 1.5 && `Active hydrothermal system`,
+                    ].filter(Boolean) as string[];
+                    return (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        <strong>Contributing factors:</strong>{" "}
+                        {contributing.length > 0 ? contributing.join(" • ") : "Baseline rate; no elevated seismic signals"}
+                      </div>
+                    );
+                  })()}
 
                   {/* Clusters if present */}
                   {assessment.clusters.length > 0 && (

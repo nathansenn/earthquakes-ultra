@@ -10,6 +10,17 @@ import {
   countryToSlug,
   GlobalVolcano,
 } from "@/data/global-volcanoes";
+import { assessGlobalVolcano, RiskLevel } from "@/lib/eruption-forecast";
+
+const RISK_TEXT: Record<RiskLevel, string> = {
+  CRITICAL: 'text-red-700 dark:text-red-300',
+  VERY_HIGH: 'text-red-600 dark:text-red-400',
+  HIGH: 'text-orange-600 dark:text-orange-400',
+  ELEVATED: 'text-yellow-600 dark:text-yellow-400',
+  MODERATE: 'text-lime-600 dark:text-lime-400',
+  LOW: 'text-green-600 dark:text-green-400',
+  BACKGROUND: 'text-gray-500 dark:text-gray-400',
+};
 
 interface PageProps {
   params: Promise<{ country: string }>;
@@ -57,8 +68,10 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
     return pop.toString();
   };
 
+  const assessment = assessGlobalVolcano(volcano);
+
   return (
-    <Link 
+    <Link
       href={`/volcanoes/${volcanoToSlug(volcano)}`}
       className="block bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-red-300 dark:hover:border-red-700 transition-all"
     >
@@ -69,9 +82,14 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
             {volcano.region} • {volcano.type}
           </p>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[volcano.status]}`}>
-          {volcano.status.replace('_', ' ')}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[volcano.status]}`}>
+            {volcano.status.replace('_', ' ')}
+          </span>
+          <span className={`text-xs font-semibold tabular-nums ${RISK_TEXT[assessment.riskLevel]}`} title="Modeled 1-year eruption probability — baseline only (no live seismicity)">
+            {assessment.probability1Year}% / yr*
+          </span>
+        </div>
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
@@ -200,7 +218,7 @@ export default async function CountryVolcanoesPage({ params }: PageProps) {
       </section>
 
       {/* Navigation */}
-      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-4 overflow-x-auto">
             <Link href="/volcanoes/global" className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 whitespace-nowrap">

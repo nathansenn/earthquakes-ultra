@@ -25,10 +25,10 @@ const RISK_TEXT: Record<RiskLevel, string> = {
 
 export const metadata: Metadata = {
   title: "Global Volcano Database | QuakeGlobe",
-  description: "Explore over 250 active and potentially active volcanoes worldwide. Interactive database with eruption history, population exposure, and volcanic hazard information.",
+  description: `Explore ${GLOBAL_VOLCANOES.length} active and potentially active volcanoes worldwide. Interactive database with eruption history, population exposure, and volcanic hazard information.`,
   openGraph: {
     title: "Global Volcano Database | QuakeGlobe",
-    description: "Over 250 volcanoes worldwide - from the Ring of Fire to Iceland. Track volcanic activity globally.",
+    description: "Active & potentially active volcanoes worldwide - from the Ring of Fire to Iceland. Track volcanic activity globally.",
   },
 };
 
@@ -47,8 +47,10 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
     return pop.toString();
   };
 
+  const assessment = assessGlobalVolcano(volcano);
+
   return (
-    <Link 
+    <Link
       href={`/volcanoes/${volcanoToSlug(volcano)}`}
       className="block bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-red-300 dark:hover:border-red-700 transition-all"
     >
@@ -73,10 +75,10 @@ function VolcanoCard({ volcano }: { volcano: GlobalVolcano }) {
           <p className="text-gray-500 dark:text-gray-400">Pop. 30km</p>
           <p className="font-semibold text-gray-900 dark:text-white">{formatPopulation(volcano.population30km)}</p>
         </div>
-        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded" title="Modeled 1-year eruption probability (baseline)">
-          <p className="text-gray-500 dark:text-gray-400">P(1yr)</p>
-          <p className={`font-semibold ${RISK_TEXT[assessGlobalVolcano(volcano).riskLevel]}`}>
-            {assessGlobalVolcano(volcano).probability1Year}%
+        <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded" title="Modeled 1-year eruption probability — baseline only (no live seismicity)">
+          <p className="text-gray-500 dark:text-gray-400">P(1yr)*</p>
+          <p className={`font-semibold ${RISK_TEXT[assessment.riskLevel]}`}>
+            {assessment.probability1Year}%
           </p>
         </div>
       </div>
@@ -90,7 +92,9 @@ export default function GlobalVolcanoesPage() {
   const stats = getGlobalVolcanoStats();
   const countries = getVolcanoCountries();
   const regions = getVolcanoRegions();
-  const recentEruptions = getRecentlyEruptedVolcanoes(2020);
+  // "Recent" tracks a rolling 5-year window instead of a hardcoded year.
+  const recentSinceYear = new Date().getFullYear() - 5;
+  const recentEruptions = getRecentlyEruptedVolcanoes(recentSinceYear);
   const highRisk = getVolcanoesByPopulationRisk().slice(0, 20);
 
   // Rank by the modeled baseline eruption probability (recency + status + VEI).
@@ -131,8 +135,8 @@ export default function GlobalVolcanoesPage() {
               <p className="text-sm text-orange-100">Active</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold">{stats.recentEruptions}</p>
-              <p className="text-sm text-orange-100">Erupted Since 2020</p>
+              <p className="text-3xl font-bold">{recentEruptions.length}</p>
+              <p className="text-sm text-orange-100">Erupted Since {recentSinceYear}</p>
             </div>
             <div className="bg-white/10 rounded-xl p-4 text-center">
               <p className="text-3xl font-bold">{stats.countries}</p>
@@ -147,7 +151,7 @@ export default function GlobalVolcanoesPage() {
       </section>
 
       {/* Navigation */}
-      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-4 overflow-x-auto">
             <Link href="/volcanoes" className="text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 whitespace-nowrap">
@@ -173,12 +177,23 @@ export default function GlobalVolcanoesPage() {
         </div>
       </section>
 
+      {/* Baseline note — applies to every P(1yr)* shown on this page */}
+      <section className="bg-amber-50 dark:bg-amber-900/15 border-b border-amber-200 dark:border-amber-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <p className="text-xs text-amber-800 dark:text-amber-200">
+            <strong>P(1yr)* is a baseline estimate</strong> from each volcano&apos;s eruption history, status and
+            explosivity — it does <strong>not</strong> include live seismicity or unrest. For seismically-informed
+            assessments see the <Link href="/volcanoes" className="underline font-medium">Philippine dashboard</Link>.
+          </p>
+        </div>
+      </section>
+
       {/* Recent Eruptions */}
       <section id="recent" className="py-8 bg-red-50 dark:bg-red-900/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Recently Erupted (Since 2020)
+            Recently Erupted (Since {recentSinceYear})
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
             {recentEruptions.length} volcanoes have erupted in the past 5 years
