@@ -103,7 +103,7 @@ export default async function HistoryPage({ params, searchParams }: Props) {
       </div>
       
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <form className="flex flex-wrap gap-4 items-center">
             <div>

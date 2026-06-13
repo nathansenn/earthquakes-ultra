@@ -13,12 +13,12 @@ import { MiniRiskChip, MiniRiskData } from "@/components/volcano/MiniRiskChip";
 import { CountUpStat } from "@/components/volcano/CountUpStat";
 
 export const metadata: Metadata = {
-  title: "AI Volcano Risk Analysis | Global Volcanic Prediction System",
+  title: "Statistical Volcano Risk Analysis | Volcanic Eruption Forecasting",
   description:
-    "AI-powered volcanic risk assessment using seismic data analysis. Real-time earthquake correlation, depth migration tracking, and eruption probability modeling.",
+    "Statistical volcanic risk assessment using seismic data analysis. Earthquake-triggering correlation, depth migration tracking, b-value anomalies and Poisson eruption probability modeling.",
   openGraph: {
-    title: "AI Volcano Risk Analysis | Global Prediction System",
-    description: "AI-powered volcanic eruption risk assessment with seismic data analysis.",
+    title: "Statistical Volcano Risk Analysis",
+    description: "Statistical volcanic eruption risk assessment built from seismic data and eruption history.",
   },
 };
 
@@ -104,11 +104,11 @@ export default async function VolcanoAnalysisPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-              <span className="text-4xl">🤖</span>
+              <span className="text-4xl">📊</span>
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold">AI Volcano Risk Analysis</h1>
-              <p className="text-indigo-100 mt-1">Real-Time Seismic Pattern Recognition & Eruption Probability Modeling</p>
+              <h1 className="text-3xl md:text-4xl font-bold">Statistical Volcano Risk Analysis</h1>
+              <p className="text-indigo-100 mt-1">Seismic-Volcanic Correlation & Eruption Probability Modeling</p>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export default async function VolcanoAnalysisPage() {
         </div>
       </section>
 
-      {/* AI Methodology Banner */}
+      {/* Methodology Banner */}
       <section className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-start gap-3">
@@ -201,7 +201,7 @@ export default async function VolcanoAnalysisPage() {
             to see how its baseline is derived.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {normalRisk.map((assessment, i) => (
               <MiniRiskChip
                 key={assessment.volcano.id}
@@ -407,7 +407,7 @@ export default async function VolcanoAnalysisPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-indigo-500 mt-0.5">●</span>
-                  <div><strong>Depth Distribution:</strong> Shallow events (&lt;5km) indicate rising magma</div>
+                  <div><strong>Depth Distribution:</strong> Shallow events (&lt;5 km) <em>can</em> accompany rising magma — but most shallow quakes are tectonic, so depth is weighed alongside other signals, never alone</div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-indigo-500 mt-0.5">●</span>
@@ -471,7 +471,7 @@ export default async function VolcanoAnalysisPage() {
               <div>
                 <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Important Disclaimer</h4>
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  This AI analysis provides <strong>statistical probability assessments</strong>, not deterministic eruption predictions. 
+                  This analysis provides <strong>statistical probability assessments</strong>, not deterministic eruption predictions.
                   Volcanic systems are complex and can change rapidly. Always defer to official PHIVOLCS bulletins and local authorities. 
                   Probabilities shown represent elevated risk over <strong>multi-year timeframes</strong>.
                 </p>
@@ -486,7 +486,7 @@ export default async function VolcanoAnalysisPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold mb-4">Stay Informed, Stay Prepared</h2>
           <p className="text-indigo-100 mb-6">
-            AI-powered monitoring helps you plan strategically. Set up alerts for earthquakes near you.
+            Statistical monitoring helps you understand the trend. For decisions, always follow official PHIVOLCS bulletins.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/alerts" className="px-8 py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-colors">

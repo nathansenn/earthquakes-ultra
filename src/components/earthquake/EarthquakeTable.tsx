@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
-import { ProcessedEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
+import { useState, useMemo, useEffect } from "react";
+import { ProcessedEarthquake, canResolveInternally } from "@/lib/usgs-api";
+import { MagnitudeBadge } from "@/components/ui/kit";
 
 type SortField = "magnitude" | "time" | "depth" | "place";
 type SortOrder = "asc" | "desc";
@@ -11,6 +12,12 @@ interface EarthquakeTableProps {
   earthquakes: ProcessedEarthquake[];
   userLocation?: { latitude: number; longitude: number } | null;
   pageSize?: number;
+  // When provided, the table is controlled: it renders the rows in the order the
+  // parent already sorted them and reports header clicks back, so there is a
+  // single source of truth for sort across the page.
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+  onSort?: (field: SortField) => void;
 }
 
 // Calculate distance between two points
@@ -34,24 +41,21 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
-function getMagnitudeClass(magnitude: number): string {
-  if (magnitude < 2.0) return "bg-gray-400 text-white";
-  if (magnitude < 3.0) return "bg-green-500 text-white";
-  if (magnitude < 4.0) return "bg-yellow-500 text-gray-900";
-  if (magnitude < 5.0) return "bg-orange-500 text-white";
-  if (magnitude < 6.0) return "bg-orange-600 text-white";
-  if (magnitude < 7.0) return "bg-red-600 text-white";
-  return "bg-red-800 text-white";
-}
-
-export function EarthquakeTable({ 
-  earthquakes, 
+export function EarthquakeTable({
+  earthquakes,
   userLocation,
-  pageSize = 25 
+  pageSize = 25,
+  sortField: controlledField,
+  sortOrder: controlledOrder,
+  onSort,
 }: EarthquakeTableProps) {
-  const [sortField, setSortField] = useState<SortField>("time");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const controlled = !!onSort;
+  const [internalField, setInternalField] = useState<SortField>("time");
+  const [internalOrder, setInternalOrder] = useState<SortOrder>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const sortField = controlled ? controlledField ?? "time" : internalField;
+  const sortOrder = controlled ? controlledOrder ?? "desc" : internalOrder;
 
   // Calculate distances if user location available
   const earthquakesWithDistance = useMemo(() => {
@@ -68,8 +72,10 @@ export function EarthquakeTable({
     }));
   }, [earthquakes, userLocation]);
 
-  // Sort earthquakes
+  // When controlled, the parent has already sorted; only sort here in the
+  // uncontrolled fallback.
   const sortedEarthquakes = useMemo(() => {
+    if (controlled) return earthquakesWithDistance;
     return [...earthquakesWithDistance].sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
@@ -88,7 +94,12 @@ export function EarthquakeTable({
       }
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [earthquakesWithDistance, sortField, sortOrder]);
+  }, [controlled, earthquakesWithDistance, sortField, sortOrder]);
+
+  // Reset to the first page whenever the order or dataset changes.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortField, sortOrder, earthquakes]);
 
   // Paginate
   const totalPages = Math.ceil(sortedEarthquakes.length / pageSize);
@@ -98,11 +109,15 @@ export function EarthquakeTable({
   );
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    if (controlled) {
+      onSort!(field);
+      return;
+    }
+    if (internalField === field) {
+      setInternalOrder(internalOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field);
-      setSortOrder("desc");
+      setInternalField(field);
+      setInternalOrder("desc");
     }
     setCurrentPage(1);
   };
@@ -192,27 +207,27 @@ export function EarthquakeTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {paginatedEarthquakes.map((eq) => (
+              {paginatedEarthquakes.map((eq) => {
+                const resolvable = canResolveInternally(eq.source);
+                const detailHref = `/earthquakes/${encodeURIComponent(eq.id)}`;
+                const placeText = eq.place || "Unknown location";
+                const placeClass = "text-sm font-medium text-gray-900 dark:text-white truncate block hover:text-red-600 dark:hover:text-red-400 hover:underline";
+                return (
                 <tr
                   key={eq.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center justify-center w-12 h-8 rounded-lg font-bold text-sm ${getMagnitudeClass(eq.magnitude)}`}
-                    >
-                      {eq.magnitude.toFixed(1)}
-                    </span>
+                    <MagnitudeBadge magnitude={eq.magnitude} size="sm" />
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-xs">
-                      <Link
-                        href={`/earthquakes/${encodeURIComponent(eq.id)}`}
-                        className="text-sm font-medium text-gray-900 dark:text-white truncate block hover:text-red-600 dark:hover:text-red-400 hover:underline"
-                      >
-                        {eq.place || "Unknown location"}
-                      </Link>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {resolvable ? (
+                        <Link href={detailHref} className={placeClass}>{placeText}</Link>
+                      ) : (
+                        <a href={eq.url} target="_blank" rel="noopener noreferrer" className={placeClass}>{placeText}</a>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
                         {eq.latitude.toFixed(3)}°, {eq.longitude.toFixed(3)}°
                       </p>
                     </div>
@@ -226,32 +241,47 @@ export function EarthquakeTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 dark:text-white">
-                      {eq.depth.toFixed(1)} km
+                    <span className="text-sm text-gray-900 dark:text-white tabular-nums">
+                      {eq.depth.toFixed(0)} km
                     </span>
                   </td>
                   {userLocation && (
                     <td className="px-4 py-3">
                       {eq.distance !== undefined && (
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400 tabular-nums">
                           {eq.distance.toFixed(0)} km
                         </span>
                       )}
                     </td>
                   )}
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/earthquakes/${encodeURIComponent(eq.id)}`}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                    >
-                      Details
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
+                    {resolvable ? (
+                      <Link
+                        href={detailHref}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        Details
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <a
+                        href={eq.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        {(eq.source ?? "source").toUpperCase()}
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

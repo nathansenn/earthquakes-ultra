@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ProcessedEarthquake } from "@/lib/usgs-api";
+import { useState } from "react";
+import { ProcessedEarthquake, canResolveInternally } from "@/lib/usgs-api";
+import { magnitudeTier } from "@/components/ui/kit";
 
 interface EarthquakeCardProps {
   earthquake: ProcessedEarthquake;
@@ -9,31 +11,53 @@ interface EarthquakeCardProps {
   distanceKm?: number;
 }
 
-function getMagnitudeClass(magnitude: number): string {
-  if (magnitude < 2.5) return "magnitude-minor";
-  if (magnitude < 4.0) return "magnitude-light";
-  if (magnitude < 5.0) return "magnitude-moderate";
-  if (magnitude < 6.0) return "magnitude-strong";
-  if (magnitude < 7.0) return "magnitude-major";
-  if (magnitude < 8.0) return "magnitude-great";
-  return "magnitude-extreme";
-}
-
 export function EarthquakeCard({
   earthquake,
   showDistance,
   distanceKm,
 }: EarthquakeCardProps) {
-  const magnitudeClass = getMagnitudeClass(earthquake.magnitude);
+  const tier = magnitudeTier(earthquake.magnitude);
+  const [copied, setCopied] = useState(false);
+  const resolvable = canResolveInternally(earthquake.source);
+  const detailHref = `/earthquakes/${encodeURIComponent(earthquake.id)}`;
+  const sourceLabel = (earthquake.source ?? "usgs").toUpperCase();
+  // Absolute time with timezone label, for the relative-time tooltip.
+  // (dateStyle/timeStyle can't be combined with timeZoneName, so use components.)
+  const absoluteTime = earthquake.time.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 
   return (
-    <article className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all hover:border-red-300 dark:hover:border-red-700 group">
+    <article className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all hover:border-red-300 dark:hover:border-red-700 group">
+      {/* Stretched link: clicking anywhere on the card opens the detail page
+          (or the source's page for events we can't resolve ourselves).
+          Interactive controls below are raised above it with relative z-10. */}
+      {resolvable ? (
+        <Link
+          href={detailHref}
+          className="absolute inset-0 z-0"
+          aria-label={`Details for M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place}`}
+        />
+      ) : (
+        <a
+          href={earthquake.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 z-0"
+          aria-label={`View M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place} on ${sourceLabel}`}
+        />
+      )}
       <div className="flex items-stretch">
         {/* Magnitude Badge */}
         <div
-          className={`flex-shrink-0 w-20 flex flex-col items-center justify-center ${magnitudeClass}`}
+          className={`flex-shrink-0 w-20 flex flex-col items-center justify-center ${tier.badgeClass}`}
         >
-          <span className="text-2xl font-bold">{earthquake.magnitude.toFixed(1)}</span>
+          <span className="text-2xl font-bold tabular-nums">{earthquake.magnitude.toFixed(1)}</span>
           <span className="text-xs uppercase opacity-80">
             {earthquake.magnitudeType}
           </span>
@@ -44,12 +68,10 @@ export function EarthquakeCard({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                <Link href={`/earthquakes/${encodeURIComponent(earthquake.id)}`} className="hover:underline">
-                  {earthquake.place}
-                </Link>
+                {earthquake.place}
               </h3>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
-                <time dateTime={earthquake.time.toISOString()} className="flex items-center gap-1">
+                <time dateTime={earthquake.time.toISOString()} title={absoluteTime} className="flex items-center gap-1">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -79,7 +101,7 @@ export function EarthquakeCard({
                       d="M19 14l-7 7m0 0l-7-7m7 7V3"
                     />
                   </svg>
-                  {earthquake.depth.toFixed(1)} km deep
+                  <span className="tabular-nums">{earthquake.depth.toFixed(0)}</span> km deep
                 </span>
                 {showDistance && distanceKm !== undefined && (
                   <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
@@ -143,24 +165,26 @@ export function EarthquakeCard({
             </div>
           </div>
 
-          {/* Action row */}
-          <div className="flex items-center gap-4 mt-3">
-            <Link
-              href={`/earthquakes/${encodeURIComponent(earthquake.id)}`}
-              className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1"
-            >
-              Details
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+          {/* Action row — raised above the stretched card link */}
+          <div className="relative z-10 flex items-center gap-4 mt-3 w-fit">
+            {resolvable && (
+              <Link
+                href={detailHref}
+                className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1"
+              >
+                Details
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            )}
             <a
               href={earthquake.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
             >
-              USGS
+              {sourceLabel}
               <svg
                 className="w-3 h-3"
                 fill="none"
@@ -177,35 +201,48 @@ export function EarthquakeCard({
             </a>
             <button
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
-              onClick={() => {
+              onClick={async () => {
                 const shareData = {
                   title: `M${earthquake.magnitude.toFixed(1)} Earthquake - ${earthquake.place}`,
                   text: `A magnitude ${earthquake.magnitude.toFixed(1)} earthquake occurred ${earthquake.timeAgo} - ${earthquake.place}`,
                   url: earthquake.url,
                 };
                 if (navigator.share) {
-                  navigator.share(shareData);
+                  try { await navigator.share(shareData); } catch { /* user dismissed */ }
                 } else {
-                  navigator.clipboard.writeText(
-                    `${shareData.title}\n${shareData.text}\n${shareData.url}`
-                  );
+                  try {
+                    await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch { /* clipboard unavailable */ }
                 }
               }}
             >
-              Share
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                />
-              </svg>
+              {copied ? (
+                <>
+                  Copied!
+                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  Share
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                    />
+                  </svg>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -223,11 +260,9 @@ export function EarthquakeCardCompact({
   return (
     <div className="flex items-center gap-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 -mx-2 px-2 rounded-lg transition-colors">
       <div
-        className={`w-12 h-12 rounded-lg flex items-center justify-center ${getMagnitudeClass(
-          earthquake.magnitude
-        )}`}
+        className={`w-12 h-12 rounded-lg flex items-center justify-center ${magnitudeTier(earthquake.magnitude).badgeClass}`}
       >
-        <span className="font-bold">{earthquake.magnitude.toFixed(1)}</span>
+        <span className="font-bold tabular-nums">{earthquake.magnitude.toFixed(1)}</span>
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900 dark:text-white truncate text-sm">

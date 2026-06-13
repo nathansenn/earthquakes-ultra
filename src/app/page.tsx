@@ -6,7 +6,9 @@ import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEa
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority } from "@/data/philippine-volcanoes";
+import { GLOBAL_VOLCANOES } from "@/data/global-volcanoes";
 import { philippineFaultLines } from "@/data/fault-lines";
+import { magnitudeTier } from "@/components/ui/kit";
 
 export const metadata: Metadata = {
   title: "QuakeGlobe — Real-Time Global Earthquake Monitoring",
@@ -113,10 +115,23 @@ export default async function HomePage() {
   const globalM5Plus = significantGlobal.filter(eq => eq.magnitude >= 5).length;
   const globalM6Plus = significantGlobal.filter(eq => eq.magnitude >= 6).length;
 
-  // Recent earthquakes - prioritize larger magnitudes for global view
-  const recentEarthquakes = [...globalM1Earthquakes]
+  // Recent earthquakes for the hero feed. Built from the multi-source records so
+  // we keep each event's source: USGS-sourced events resolve on our own detail
+  // page (DB or USGS fallback), so we link internally; other sources link out to
+  // their authoritative page to avoid dead internal links.
+  const heroFeed = [...multiSourceEarthquakes]
     .sort((a, b) => b.time.getTime() - a.time.getTime())
-    .slice(0, 10);
+    .slice(0, 6)
+    .map((eq) => ({
+      id: eq.id,
+      magnitude: eq.magnitude,
+      place: eq.place,
+      depth: eq.depth,
+      timeAgo: getTimeAgo(eq.time),
+      tsunami: eq.tsunami ?? false,
+      url: eq.url,
+      source: eq.source,
+    }));
 
   // Get volcanoes with elevated risk
   const prioritizedVolcanoes = getVolcanoesByPriority();
@@ -165,8 +180,8 @@ export default async function HomePage() {
                 Everywhere.
               </h1>
               <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-lg">
-                Real-time earthquake monitoring for the entire planet. 
-                Track M1+ seismic activity from micro-tremors to major quakes, updated every minute.
+                Real-time earthquake monitoring for the entire planet.
+                Track M1+ seismic activity from micro-tremors to major quakes, refreshed every ~15 minutes.
               </p>
 
               {/* CTA Buttons */}
@@ -205,7 +220,12 @@ export default async function HomePage() {
                   <p className="text-sm text-gray-400">M5+ (7d)</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm border border-white/10">
-                  <p className="text-3xl md:text-4xl font-bold text-orange-400">{largestToday?.magnitude.toFixed(1) || '0.0'}</p>
+                  <p
+                    className="text-3xl md:text-4xl font-bold tabular-nums"
+                    style={largestToday ? { color: magnitudeTier(largestToday.magnitude).hex } : undefined}
+                  >
+                    {largestToday?.magnitude.toFixed(1) || '0.0'}
+                  </p>
                   <p className="text-sm text-gray-400">Largest Today</p>
                 </div>
               </div>
@@ -223,32 +243,38 @@ export default async function HomePage() {
                 </Link>
               </div>
               <div className="space-y-3">
-                {recentEarthquakes.slice(0, 6).map((eq) => (
-                  <a
-                    key={eq.id}
-                    href={eq.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"
-                  >
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-sm shadow-lg"
-                      style={{ backgroundColor: getMagnitudeColor(eq.magnitude), color: eq.magnitude >= 4 ? 'white' : '#1f2937' }}
-                    >
-                      {eq.magnitude.toFixed(1)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{eq.place}</p>
-                      <p className="text-xs text-gray-400">{eq.timeAgo} • {eq.depth.toFixed(0)}km deep</p>
-                    </div>
-                    {eq.tsunami && (
-                      <span className="text-xs bg-blue-500/30 text-blue-300 px-2 py-1 rounded">
-                        🌊
-                      </span>
-                    )}
-                  </a>
-                ))}
-                {recentEarthquakes.length === 0 && (
+                {heroFeed.map((eq) => {
+                  const inner = (
+                    <>
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-sm shadow-lg tabular-nums"
+                        style={{ backgroundColor: getMagnitudeColor(eq.magnitude), color: eq.magnitude >= 4 ? 'white' : '#1f2937' }}
+                      >
+                        {eq.magnitude.toFixed(1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{eq.place}</p>
+                        <p className="text-xs text-gray-400">{eq.timeAgo} • {eq.depth.toFixed(0)}km deep</p>
+                      </div>
+                      {eq.tsunami && (
+                        <span className="text-xs bg-blue-500/30 text-blue-300 px-2 py-1 rounded" title="Tsunami evaluated">
+                          🌊
+                        </span>
+                      )}
+                    </>
+                  );
+                  const cls = "flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors";
+                  return eq.source === 'usgs' ? (
+                    <Link key={eq.id} href={`/earthquakes/${encodeURIComponent(eq.id)}`} className={cls}>
+                      {inner}
+                    </Link>
+                  ) : (
+                    <a key={eq.id} href={eq.url} target="_blank" rel="noopener noreferrer" className={cls}>
+                      {inner}
+                    </a>
+                  );
+                })}
+                {heroFeed.length === 0 && (
                   <p className="text-sm text-gray-400 text-center py-4">
                     Loading earthquake data...
                   </p>
@@ -301,7 +327,7 @@ export default async function HomePage() {
             </div>
             
             {/* Magnitude Breakdown */}
-            <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mb-6">
+            <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-7 gap-2 sm:gap-3 mb-6">
               {[
                 { label: 'M1+', count: globalStats.m1Plus, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
                 { label: 'M2+', count: globalStats.m2Plus, color: 'bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300' },
@@ -454,9 +480,9 @@ export default async function HomePage() {
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-6 border border-orange-200 dark:border-orange-800">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-orange-900 dark:text-orange-200 flex items-center gap-2">
-                  🌋 Global Volcano Watch
+                  🌋 Philippine Volcano Watch
                 </h3>
-                <Link href="/volcanoes/global" className="text-xs text-orange-600 dark:text-orange-400 hover:underline">
+                <Link href="/volcanoes" className="text-xs text-orange-600 dark:text-orange-400 hover:underline">
                   Full Monitor →
                 </Link>
               </div>
@@ -609,8 +635,8 @@ export default async function HomePage() {
                 Magnitude Scale
               </h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                The Richter scale is logarithmic — each whole number increase represents 10x more shaking 
-                and ~31x more energy. An M7 releases 1,000x more energy than an M5.
+                The moment magnitude scale (the modern successor to Richter) is logarithmic — each whole
+                number is 10× more ground shaking and ~31× more energy. An M7 releases ~1,000× the energy of an M5.
               </p>
             </div>
           </div>
@@ -725,7 +751,7 @@ export default async function HomePage() {
                 Real-time Updates
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Data refreshed every minute from USGS. Get the latest seismic activity as it happens, not hours later.
+                Data refreshed every ~15 minutes from USGS, EMSC, JMA &amp; GeoNet. The latest seismic activity, not hours later.
               </p>
             </div>
 
@@ -749,7 +775,7 @@ export default async function HomePage() {
                 Volcano Monitoring
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Track 300+ active volcanoes worldwide. Scientific risk assessment based on seismic-volcanic correlation models.
+                Track {(GLOBAL_VOLCANOES.length + PHILIPPINE_VOLCANOES.length).toLocaleString()} volcanoes across the Pacific Ring of Fire and beyond, with statistical risk assessment based on seismic-volcanic correlation models.
               </p>
             </div>
 

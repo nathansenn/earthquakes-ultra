@@ -42,13 +42,21 @@ export default function AlertsPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Alert Preferences Saved!
+            Preferences Previewed
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            You&apos;ll receive notifications when earthquakes matching your criteria are detected.
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            This is a demo. Alert delivery isn&apos;t connected yet, so <strong>no notifications will be sent</strong> and
+            nothing is stored. For real-time official alerts, use PHIVOLCS, USGS, or your national agency.
           </p>
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 mb-6 text-left">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              In the meantime, you can browse{" "}
+              <Link href="/near-me" className="underline font-medium">earthquakes near you</Link> or set up your
+              browser to keep this page open.
+            </p>
+          </div>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 text-left">
-            <h3 className="font-medium text-gray-900 dark:text-white mb-2">Your Settings:</h3>
+            <h3 className="font-medium text-gray-900 dark:text-white mb-2">Preferences you chose:</h3>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
               <li>• Location: {selectedCity || "All Philippines"}</li>
               <li>• Minimum magnitude: {minMagnitude}</li>
@@ -89,8 +97,8 @@ export default function AlertsPage() {
             Earthquake Alert Settings
           </h1>
           <p className="text-lg text-orange-100 max-w-xl mx-auto">
-            Get notified when earthquakes occur in your area. Choose your
-            preferred notification methods and customize alert thresholds.
+            Preview how alert preferences would work. Choose notification methods
+            and a magnitude threshold to see the experience.
           </p>
         </div>
       </section>
@@ -98,6 +106,17 @@ export default function AlertsPage() {
       {/* Form */}
       <section className="py-12">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Honest preview banner — alert delivery is not yet wired up */}
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+            <span className="text-xl leading-none mt-0.5" aria-hidden>🚧</span>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Demo preview.</strong> Alert delivery (email / SMS / push) isn&apos;t connected yet —
+              submitting won&apos;t send notifications or save your details. QuakeGlobe is an independent
+              monitor, not an official warning service. For real alerts, rely on{" "}
+              <a href="https://www.phivolcs.dost.gov.ph/" target="_blank" rel="noopener noreferrer" className="underline font-medium">PHIVOLCS</a>{" "}
+              and your local authorities.
+            </p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Location Selection */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
@@ -302,7 +321,7 @@ export default function AlertsPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Save Alert Preferences
+                  Preview Alert Setup
                 </>
               )}
             </button>
@@ -311,9 +330,9 @@ export default function AlertsPage() {
           {/* Info */}
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Note:</strong> This is a demo feature. In a production environment,
-              alerts would be sent via the selected notification channels. Data is sourced
-              from USGS in real-time.
+              <strong>Note:</strong> Alert delivery is not yet implemented — this page is a design
+              preview only and stores nothing. The earthquake data shown elsewhere on the site is
+              real, sourced from USGS, EMSC, JMA, GeoNet and PHIVOLCS.
             </p>
           </div>
         </div>

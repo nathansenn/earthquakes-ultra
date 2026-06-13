@@ -121,15 +121,29 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
   const pht = eq.time.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "full", timeStyle: "short" });
   const utc = eq.time.toISOString().replace("T", " ").slice(0, 16) + " UTC";
 
+  // Epicenter mini-map bbox (OpenStreetMap embed — no API key, no extra deps).
+  const latDelta = 0.9;
+  const lonDelta = 1.4;
+  const bbox = [
+    eq.longitude - lonDelta,
+    eq.latitude - latDelta,
+    eq.longitude + lonDelta,
+    eq.latitude + latDelta,
+  ].map((n) => n.toFixed(4));
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox.join("%2C")}&layer=mapnik&marker=${eq.latitude.toFixed(4)}%2C${eq.longitude.toFixed(4)}`;
+  const mapLink = `https://www.openstreetmap.org/?mlat=${eq.latitude.toFixed(4)}&mlon=${eq.longitude.toFixed(4)}#map=8/${eq.latitude.toFixed(3)}/${eq.longitude.toFixed(3)}`;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero */}
-      <section className="text-white" style={{ background: `linear-gradient(135deg, ${color}, #111827)` }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <nav className="flex items-center gap-2 text-sm text-white/70 mb-4 flex-wrap">
+      <section className="relative text-white overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}, #111827)` }}>
+        {/* Dark overlay so white text stays readable over light magnitude colors */}
+        <div className="absolute inset-0 bg-black/30" aria-hidden />
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <nav className="flex items-center gap-2 text-sm text-white/70 mb-4 flex-wrap" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-white">Home</Link><span>/</span>
             <Link href="/earthquakes" className="hover:text-white">Earthquakes</Link><span>/</span>
-            <span className="text-white">M{eq.magnitude.toFixed(1)}</span>
+            <span className="text-white">M{eq.magnitude.toFixed(1)} — {eq.place}</span>
           </nav>
           <div className="flex items-start gap-5">
             <div className="shrink-0 w-24 h-24 rounded-2xl bg-white/15 backdrop-blur flex flex-col items-center justify-center">
@@ -152,7 +166,7 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
         {/* Key facts */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <Fact label="Magnitude" value={`${eq.magnitude.toFixed(1)} ${eq.magnitudeType}`} sub={intensity} />
-          <Fact label="Depth" value={`${eq.depth.toFixed(1)} km`} sub={depthClass} />
+          <Fact label="Depth" value={`${eq.depth.toFixed(0)} km`} sub={depthClass} />
           <Fact label="Energy" value={energyTNTLabel(eq.magnitude)} sub="Gutenberg–Richter" />
           <Fact label="Coordinates" value={`${eq.latitude.toFixed(3)}°, ${eq.longitude.toFixed(3)}°`} />
           <Fact label="Felt reports" value={eq.felt != null ? eq.felt.toLocaleString() : "—"} sub={eq.felt ? '“Did You Feel It?”' : undefined} />
@@ -160,6 +174,27 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
           <Fact label="Source" value={eq.source.toUpperCase()} />
           <Fact label="Region" value={eq.region ?? "—"} />
         </div>
+
+        {/* Epicenter mini-map */}
+        <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 p-5 pb-3">
+            <h2 className="font-semibold text-gray-900 dark:text-white">📍 Epicenter</h2>
+            <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+              {eq.latitude.toFixed(3)}°, {eq.longitude.toFixed(3)}°
+            </span>
+          </div>
+          <iframe
+            title={`Map of the epicenter near ${eq.place}`}
+            src={mapSrc}
+            loading="lazy"
+            className="w-full h-64 border-0"
+          />
+          <div className="p-3 text-right">
+            <a href={mapLink} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+              View larger map ↗
+            </a>
+          </div>
+        </section>
 
         {/* What it means */}
         <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
@@ -171,6 +206,27 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
               eq.depth < 300 ? " Intermediate-depth quakes spread shaking over a wider area but are usually less destructive at the surface." :
                 " Deep quakes are felt over very large areas but rarely cause surface damage."}
           </p>
+
+          {/* Magnitude scale visualization */}
+          <div className="mt-4">
+            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
+              <span>M0</span><span>M2</span><span>M4</span><span>M6</span><span>M8</span><span>M10</span>
+            </div>
+            <div
+              className="relative h-3 rounded-full"
+              style={{ background: "linear-gradient(90deg,#22c55e,#eab308,#f97316,#dc2626,#450a0a)" }}
+              role="img"
+              aria-label={`Magnitude ${eq.magnitude.toFixed(1)} on a 0 to 10 scale`}
+            >
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-gray-900 dark:border-gray-100 shadow"
+                style={{ left: `calc(${Math.min(100, Math.max(0, (eq.magnitude / 10) * 100))}% - 8px)` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              This event sits in the <strong>{intensity}</strong> range of the moment magnitude scale.
+            </p>
+          </div>
         </section>
 
         {/* Related data — all linked */}
@@ -199,10 +255,10 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
             </div>
           </section>
 
-          {/* Nearby volcanoes */}
-          <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
-            <h2 className="font-semibold text-gray-900 dark:text-white mb-3">🌋 Nearby volcanoes</h2>
-            {nearbyVolcanoes.length > 0 ? (
+          {/* Nearby volcanoes (Philippine monitoring network — only shown when relevant) */}
+          {nearbyVolcanoes.length > 0 && (
+            <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+              <h2 className="font-semibold text-gray-900 dark:text-white mb-3">🌋 Nearby volcanoes</h2>
               <ul className="space-y-2">
                 {nearbyVolcanoes.map(({ v, d }) => (
                   <li key={v.id}>
@@ -214,13 +270,13 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-sm text-gray-500 dark:text-gray-400">No monitored volcanoes within 200 km.</p>}
-          </section>
+            </section>
+          )}
 
-          {/* Nearby cities */}
-          <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
-            <h2 className="font-semibold text-gray-900 dark:text-white mb-3">🏙️ Nearby cities</h2>
-            {nearbyCities.length > 0 ? (
+          {/* Nearby cities (Philippine cities — only shown when relevant) */}
+          {nearbyCities.length > 0 && (
+            <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+              <h2 className="font-semibold text-gray-900 dark:text-white mb-3">🏙️ Nearby cities</h2>
               <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {nearbyCities.map(({ c, d }) => (
                   <li key={c.slug}>
@@ -231,8 +287,8 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-sm text-gray-500 dark:text-gray-400">No major cities within 350 km.</p>}
-          </section>
+            </section>
+          )}
 
           {/* Related earthquakes */}
           <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">

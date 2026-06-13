@@ -66,7 +66,7 @@ export const PH_ERUPTION_HISTORY: Record<string, EruptionRecord> = {
   // --- Well-documented (rate computed from GVP eruption frequency) ---
   Mayon: {
     gvpNumber: 273030, historicalEruptions: 66, recordStartYear: 1616, lastEruptionYear: 2026,
-    eruptionStyle: 'Open-conduit stratovolcano — frequent VEI 1–3 (lava effusion, PDCs, Strombolian)',
+    eruptionStyle: 'Open-conduit stratovolcano — frequent VEI 1–3 (lava effusion, PDCs (pyroclastic density currents — fast, hot ash-and-gas flows), Strombolian bursts)',
     dominantVEI: 2,
     notableEruptions: [
       { year: 1814, vei: 4, note: 'Cagsawa — ~1,200 deaths, town buried' },
@@ -85,7 +85,7 @@ export const PH_ERUPTION_HISTORY: Record<string, EruptionRecord> = {
   },
   Taal: {
     gvpNumber: 273070, historicalEruptions: 39, recordStartYear: 1572, lastEruptionYear: 2022,
-    eruptionStyle: 'Caldera/complex — phreatomagmatic, base surges; VEI 1–4',
+    eruptionStyle: 'Caldera/complex — phreatomagmatic (magma–water explosions), base surges (ground-hugging ash clouds); VEI 1–4',
     dominantVEI: 3,
     notableEruptions: [
       { year: 1754, vei: 4, note: '7-month eruption; towns destroyed' },
@@ -103,7 +103,7 @@ export const PH_ERUPTION_HISTORY: Record<string, EruptionRecord> = {
   },
   Canlaon: {
     gvpNumber: 272020, historicalEruptions: 31, recordStartYear: 1866, lastEruptionYear: 2026,
-    eruptionStyle: 'Stratovolcano — frequent phreatic, occasional magmatic; VEI 1–3',
+    eruptionStyle: 'Stratovolcano — frequent phreatic (steam-driven), occasional magmatic; VEI 1–3',
     dominantVEI: 2,
     notableEruptions: [
       { year: 1996, vei: 1, note: 'Phreatic — 3 hikers killed near summit' },
@@ -153,7 +153,7 @@ export const PH_ERUPTION_HISTORY: Record<string, EruptionRecord> = {
   },
   'Hibok-Hibok': {
     gvpNumber: 271080, lastEruptionYear: 1953,
-    eruptionStyle: 'Stratovolcano (lava domes) — VEI 1–3, deadly PDCs',
+    eruptionStyle: 'Stratovolcano (lava domes) — VEI 1–3, deadly PDCs (pyroclastic density currents)',
     dominantVEI: 2,
     notableEruptions: [
       { year: 1871, note: 'Dome growth formed Mt. Vulcan' },

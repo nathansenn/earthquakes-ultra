@@ -40,9 +40,15 @@ export function useCountUp(
   { duration = 1100, decimals = 0 }: { duration?: number; decimals?: number } = {}
 ): number {
   const [val, setVal] = useState(0);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     if (!active) return;
+    // Respect reduced-motion: show the final value without the easing animation.
+    if (reduced) {
+      setVal(target);
+      return;
+    }
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
@@ -54,7 +60,7 @@ export function useCountUp(
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, active, duration]);
+  }, [target, active, duration, reduced]);
 
   const f = Math.pow(10, decimals);
   return Math.round(val * f) / f;

@@ -32,6 +32,13 @@ const DOT: Record<string, string> = {
   BACKGROUND: 'bg-gray-400',
 };
 
+// Log scale so a 0.5% vs 3% baseline difference is actually visible (a linear
+// bar would render both as a sliver). Maps ~0%→0 and 50%→full.
+function logBarWidth(pct: number): number {
+  if (pct <= 0) return 0;
+  return Math.min(100, (Math.log10(pct + 1) / Math.log10(51)) * 100);
+}
+
 export function MiniRiskChip({ data, index = 0 }: { data: MiniRiskData; index?: number }) {
   const { ref, inView } = useInView<HTMLButtonElement>();
   const [open, setOpen] = useState(false);
@@ -41,6 +48,7 @@ export function MiniRiskChip({ data, index = 0 }: { data: MiniRiskData; index?: 
     <button
       ref={ref}
       onClick={() => setOpen(o => !o)}
+      title={`${data.name}: ${data.p1Year}% modeled eruption probability / yr · ${data.riskLevel.replace('_', ' ').toLowerCase()} · tap for details`}
       className="text-left rounded-xl p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors w-full"
       style={{
         transition: 'opacity .5s ease, transform .5s ease, border-color .2s',
@@ -66,7 +74,7 @@ export function MiniRiskChip({ data, index = 0 }: { data: MiniRiskData; index?: 
       <div className="h-1.5 mt-2 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
         <div className="h-full rounded-full bg-gradient-to-r from-green-400 to-lime-500"
           style={{
-            width: inView ? `${Math.min(data.p1Year * 2.5, 100)}%` : '0%',
+            width: inView ? `${logBarWidth(data.p1Year)}%` : '0%',
             transition: 'width .9s cubic-bezier(.22,1,.36,1)',
             transitionDelay: `${index * 40 + 120}ms`,
           }} />

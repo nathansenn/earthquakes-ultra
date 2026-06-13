@@ -375,8 +375,10 @@ export function DynamicFooter({ region, city, country, pageType = 'home' }: Dyna
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 © {currentYear} QuakeGlobe — Real-Time Global Earthquake Monitoring
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Data provided by USGS. Not for official emergency use.
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xl">
+                QuakeGlobe is an independent monitoring aggregator, <strong>not an official warning
+                system</strong>. Data from USGS, EMSC, JMA, GeoNet &amp; PHIVOLCS. For emergencies and
+                official alerts, follow PHIVOLCS, USGS and your local authorities.
               </p>
             </div>
             <div className="flex items-center gap-4">

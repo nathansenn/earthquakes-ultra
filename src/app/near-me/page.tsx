@@ -211,25 +211,33 @@ export default function NearMePage() {
           </p>
 
           {locationStatus === "idle" && (
-            <button
-              onClick={requestLocation}
-              className="px-8 py-4 bg-white text-green-700 rounded-xl font-semibold hover:bg-green-50 transition-colors flex items-center gap-3 mx-auto shadow-lg"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={requestLocation}
+                className="px-8 py-4 bg-white text-green-700 rounded-xl font-semibold hover:bg-green-50 transition-colors flex items-center gap-3 mx-auto shadow-lg"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-              </svg>
-              Enable Location Access
-            </button>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                </svg>
+                Enable Location Access
+              </button>
+              <p className="text-xs text-green-100 max-w-sm mx-auto flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Your location stays in your browser — it&apos;s only used to find nearby quakes and is never stored or sent to us.
+              </p>
+            </div>
           )}
 
           {locationStatus === "requesting" && (
@@ -261,8 +269,7 @@ export default function NearMePage() {
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-green-100">
                 <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
-                Location: {userLocation.lat.toFixed(4)},{" "}
-                {userLocation.lng.toFixed(4)}
+                📍 Your location ({userLocation.lat.toFixed(3)}, {userLocation.lng.toFixed(3)})
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -380,11 +387,13 @@ export default function NearMePage() {
                 </svg>
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                No Recent Earthquakes
+                No Earthquakes Matched
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Good news! No earthquakes detected within {radiusKm}km of your
-                location in the past 30 days.
+              <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                No M{minMag.toFixed(1)}+ earthquakes were recorded within {radiusKm} km in the past 30 days.
+                This shows recorded events only — a quiet period doesn&apos;t guarantee future safety. Try a
+                wider radius or lower magnitude, and review the{" "}
+                <a href="/preparedness" className="text-green-700 dark:text-green-400 underline">preparedness guide</a>.
               </p>
             </div>
           )}

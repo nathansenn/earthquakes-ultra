@@ -106,6 +106,8 @@ export interface RiskCardData {
   };
   scientificNotes: string[];
   guidanceAction: string;
+  guidanceContext: string;
+  preparednessSteps: string[];
   // Reasoning, evidence & historical/scientific context
   riskDirection: RiskDirectionData;
   evidence: EvidenceRow[];
@@ -152,6 +154,35 @@ function anomalyChip(anomaly: string): string {
   if (anomaly === 'low') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
   if (anomaly === 'high') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
   return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+}
+
+// Confidence → colored chip (low confidence shouldn't read like high).
+function confidenceChip(confidence: string): string {
+  const c = confidence.toUpperCase();
+  if (c.includes('HIGH')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+  if (c.includes('MODERATE') || c.includes('MEDIUM')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+  return 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+}
+
+// Plain-language glosses for jargon, shown on hover/long-press via title + a
+// dotted underline so non-experts aren't left guessing.
+const GLOSSARY: Record<string, string> = {
+  'b-value': 'Gutenberg–Richter b-value: the ratio of small to large quakes. A drop can signal rising stress.',
+  'Mc': 'Magnitude of completeness — the smallest magnitude the catalogue reliably records.',
+  'Poisson': 'A model that turns an average event rate into the probability of at least one event in a period.',
+  'λ': 'Lambda — the modeled average number of eruptions per year.',
+  'VEI': 'Volcanic Explosivity Index (0–8) — a log scale of eruption size.',
+  'repose': 'Repose: the quiet interval since a volcano last erupted.',
+};
+
+function Term({ k, children }: { k: keyof typeof GLOSSARY | string; children: React.ReactNode }) {
+  const gloss = GLOSSARY[k];
+  if (!gloss) return <>{children}</>;
+  return (
+    <abbr title={gloss} className="no-underline border-b border-dotted border-gray-400/60 cursor-help">
+      {children}
+    </abbr>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +284,11 @@ function ReposeGauge({ repose }: { repose: ReposeData }) {
         <span>just erupted</span><span>average</span><span>2× overdue</span>
       </div>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">{repose.interpretation}</p>
+      {(repose.status === 'overdue' || repose.status === 'long-overdue') && (
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic">
+          &ldquo;Overdue&rdquo; is statistical — volcanoes don&apos;t erupt on a schedule, and a long repose doesn&apos;t mean an eruption is imminent.
+        </p>
+      )}
     </div>
   );
 }
@@ -333,7 +369,9 @@ function Arrow({ inView, delay, label }: { inView: boolean; delay: number; label
 
 function FactorChain({ d, inView }: { d: RiskCardData; inView: boolean }) {
   return (
-    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+    // Horizontal scroll on small screens keeps the left→right chain readable
+    // instead of wrapping the arrows into a jumble.
+    <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1 text-xs">
       <Chip inView={inView} delay={0} tone="base">
         Baseline {d.baseAnnualRate.toFixed(3)}/yr
         <span className="opacity-60"> · ~{d.recurrenceYears}y</span>
@@ -348,7 +386,7 @@ function FactorChain({ d, inView }: { d: RiskCardData; inView: boolean }) {
       </Chip>
       <Arrow inView={inView} delay={480} label="λ" />
       <Chip inView={inView} delay={540} tone="base">
-        {d.effectiveAnnualRate.toFixed(2)}/yr
+        <Term k="λ">{d.effectiveAnnualRate.toFixed(2)}/yr</Term>
       </Chip>
       <Arrow inView={inView} delay={660} label="Poisson" />
       <Chip inView={inView} delay={720} tone="result">
@@ -415,6 +453,22 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function Evidence({ d }: { d: RiskCardData }) {
   return (
     <div className="space-y-5 pt-4">
+      {/* What this means + concrete preparedness steps */}
+      <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/60">
+        <h4 className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 mb-1">📋 What to do</h4>
+        <p className="text-[11px] text-indigo-800/90 dark:text-indigo-200/90">{d.guidanceContext}</p>
+        {d.preparednessSteps.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {d.preparednessSteps.map((s, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-gray-700 dark:text-gray-200">
+                <span className="text-indigo-500 mt-0.5" aria-hidden>✓</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* Evidence ledger — why the risk is higher or lower */}
       <div>
         <div className="flex items-center gap-2 mb-1">
@@ -523,14 +577,14 @@ function Evidence({ d }: { d: RiskCardData }) {
         {d.bValue && (
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60">
             <div className="flex items-center justify-between mb-1">
-              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200">📉 b-value (Gutenberg–Richter)</h4>
+              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200"><Term k="b-value">📉 b-value</Term> (Gutenberg–Richter)</h4>
               <span className={`text-[10px] px-1.5 py-0.5 rounded ${anomalyChip(d.bValue.anomaly)}`}>{d.bValue.anomaly}</span>
             </div>
             <p className="text-lg font-bold text-gray-900 dark:text-white">
               {d.bValue.value.toFixed(2)} <span className="text-xs font-normal text-gray-400">± {d.bValue.stdErr.toFixed(2)}</span>
             </p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Mc {d.bValue.mc.toFixed(1)} · n={d.bValue.sampleSize}
+              <Term k="Mc">Mc</Term> {d.bValue.mc.toFixed(1)} · n={d.bValue.sampleSize}
             </p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{d.bValue.interpretation}</p>
           </div>
@@ -677,10 +731,15 @@ export function RiskCard({ data, index = 0 }: { data: RiskCardData; index?: numb
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {data.province}{data.province && data.region ? ', ' : ''}{data.region} · {data.type}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Confidence: <span className="capitalize">{data.confidence.toLowerCase().replace('_', ' ')}</span>
-              {' · '}{data.monitoringStations} stations
-              {' · '}{data.hasHazardMap ? 'hazard map ✓' : 'no hazard map'}
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold capitalize ${confidenceChip(data.confidence)}`}
+                title="Model confidence reflects how much station coverage and seismic data were available."
+              >
+                {data.confidence.toLowerCase().replace('_', ' ')} confidence
+              </span>
+              <span>· {data.monitoringStations} stations</span>
+              <span>· {data.hasHazardMap ? 'hazard map ✓' : 'no hazard map'}</span>
             </p>
             <p className="text-sm text-gray-700 dark:text-gray-200 mt-2">📋 {data.guidanceAction}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{data.riskDirection.summary}</p>
