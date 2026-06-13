@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ProcessedEarthquake } from "@/lib/usgs-api";
 import { MagnitudeBadge } from "@/components/ui/kit";
 
@@ -12,6 +12,12 @@ interface EarthquakeTableProps {
   earthquakes: ProcessedEarthquake[];
   userLocation?: { latitude: number; longitude: number } | null;
   pageSize?: number;
+  // When provided, the table is controlled: it renders the rows in the order the
+  // parent already sorted them and reports header clicks back, so there is a
+  // single source of truth for sort across the page.
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+  onSort?: (field: SortField) => void;
 }
 
 // Calculate distance between two points
@@ -36,13 +42,20 @@ function deg2rad(deg: number): number {
 }
 
 export function EarthquakeTable({
-  earthquakes, 
+  earthquakes,
   userLocation,
-  pageSize = 25 
+  pageSize = 25,
+  sortField: controlledField,
+  sortOrder: controlledOrder,
+  onSort,
 }: EarthquakeTableProps) {
-  const [sortField, setSortField] = useState<SortField>("time");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const controlled = !!onSort;
+  const [internalField, setInternalField] = useState<SortField>("time");
+  const [internalOrder, setInternalOrder] = useState<SortOrder>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const sortField = controlled ? controlledField ?? "time" : internalField;
+  const sortOrder = controlled ? controlledOrder ?? "desc" : internalOrder;
 
   // Calculate distances if user location available
   const earthquakesWithDistance = useMemo(() => {
@@ -59,8 +72,10 @@ export function EarthquakeTable({
     }));
   }, [earthquakes, userLocation]);
 
-  // Sort earthquakes
+  // When controlled, the parent has already sorted; only sort here in the
+  // uncontrolled fallback.
   const sortedEarthquakes = useMemo(() => {
+    if (controlled) return earthquakesWithDistance;
     return [...earthquakesWithDistance].sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
@@ -79,7 +94,12 @@ export function EarthquakeTable({
       }
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [earthquakesWithDistance, sortField, sortOrder]);
+  }, [controlled, earthquakesWithDistance, sortField, sortOrder]);
+
+  // Reset to the first page whenever the order or dataset changes.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortField, sortOrder, earthquakes]);
 
   // Paginate
   const totalPages = Math.ceil(sortedEarthquakes.length / pageSize);
@@ -89,11 +109,15 @@ export function EarthquakeTable({
   );
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    if (controlled) {
+      onSort!(field);
+      return;
+    }
+    if (internalField === field) {
+      setInternalOrder(internalOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field);
-      setSortOrder("desc");
+      setInternalField(field);
+      setInternalOrder("desc");
     }
     setCurrentPage(1);
   };

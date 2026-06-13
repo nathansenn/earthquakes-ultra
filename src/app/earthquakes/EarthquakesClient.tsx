@@ -62,8 +62,28 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [sortBy, setSortBy] = useState<'time' | 'magnitude' | 'depth'>('time');
+  const [sortBy, setSortBy] = useState<'time' | 'magnitude' | 'depth' | 'place'>('time');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Single source of truth for sort order — the table's column headers call this
+  // too, so the dropdown and the table never disagree.
+  const handleSort = (field: 'time' | 'magnitude' | 'depth' | 'place') => {
+    if (field === sortBy) {
+      setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'place' ? 'asc' : 'desc');
+    }
+  };
+
+  const resetFilters = () => {
+    setMinMagnitude(1);
+    setTimeRange('7d');
+    setRegion('');
+    setSource('');
+    setDepthFilter('');
+    setSearchQuery('');
+  };
 
   // Fetch data when time range changes to historical
   const fetchHistoricalData = useCallback(async () => {
@@ -192,6 +212,9 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
         case 'depth':
           comparison = a.depth - b.depth;
           break;
+        case 'place':
+          comparison = (a.place || '').localeCompare(b.place || '');
+          break;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -267,8 +290,8 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
         </div>
       </section>
 
-      {/* Filters Bar */}
-      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      {/* Filters Bar (sticks just under the h-16 header) */}
+      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Search Bar */}
           <div className="mb-4">
@@ -297,7 +320,7 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
                     onClick={() => setMinMagnitude(option.value)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                       minMagnitude === option.value
-                        ? "bg-blue-500 text-white"
+                        ? "bg-blue-600 text-white"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                     }`}
                   >
@@ -317,8 +340,8 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
                     onClick={() => setTimeRange(option.value)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                       timeRange === option.value
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-100 dark:hover:bg-green-900/30"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                     }`}
                   >
                     {option.label.replace("Last ", "")}
@@ -378,12 +401,13 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort:</span>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'time' | 'magnitude' | 'depth')}
+                  onChange={(e) => setSortBy(e.target.value as 'time' | 'magnitude' | 'depth' | 'place')}
                   className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   <option value="time">Time</option>
                   <option value="magnitude">Magnitude</option>
                   <option value="depth">Depth</option>
+                  <option value="place">Location</option>
                 </select>
                 <button
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -455,6 +479,23 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
               <p className="text-gray-600 dark:text-gray-400">Loading historical data...</p>
               <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">This may take a moment for large date ranges</p>
             </div>
+          ) : filteredEarthquakes.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No earthquakes match these filters</h3>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
+                {searchQuery ? <>Nothing matched &ldquo;{searchQuery}&rdquo; with the current filters. </> : null}
+                Try widening the time range or lowering the minimum magnitude.
+              </p>
+              <button
+                onClick={resetFilters}
+                className="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Reset filters
+              </button>
+            </div>
           ) : (
             <>
               <div className="mb-4 flex items-center justify-between">
@@ -470,14 +511,17 @@ export function EarthquakesClient({ initialEarthquakes, error }: EarthquakesClie
               </div>
 
               {viewMode === "table" ? (
-                <EarthquakeTable 
-                  earthquakes={filteredEarthquakes} 
+                <EarthquakeTable
+                  earthquakes={filteredEarthquakes}
                   userLocation={userLocation}
                   pageSize={50}
+                  sortField={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
                 />
               ) : (
-                <EarthquakeList 
-                  earthquakes={filteredEarthquakes} 
+                <EarthquakeList
+                  earthquakes={filteredEarthquakes}
                   showDistance={!!userLocation}
                   userLocation={userLocation || undefined}
                 />
