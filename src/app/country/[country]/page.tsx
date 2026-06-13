@@ -6,6 +6,7 @@ import { getCitiesByCountry } from "@/data/major-cities";
 import { fetchEarthquakesByBounds, processEarthquake, ProcessedEarthquake, getTimeAgo, getMagnitudeIntensity } from "@/lib/usgs-api";
 import { fetchRegionEarthquakes, getRegionInfo } from "@/lib/regional-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 interface Props {
   params: Promise<{ country: string }>;
@@ -107,6 +108,13 @@ export default async function CountryPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Countries", path: "/countries" },
+          ...(region ? [{ name: region.name, path: `/region/${region.slug}` }] : []),
+          { name: country.name },
+        ]}
+      />
       {/* Header */}
       <section className={`py-12 ${
         country.riskLevel === 'extreme' 

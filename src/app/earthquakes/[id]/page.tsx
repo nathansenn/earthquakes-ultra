@@ -11,6 +11,7 @@ import { haversineKm, bearing, energyTNTLabel } from "@/lib/geo";
 import { calculateSeismicRisk } from "@/data/fault-lines";
 import { PHILIPPINE_VOLCANOES, volcanoNameToSlug } from "@/data/philippine-volcanoes";
 import { philippineCities } from "@/data/philippine-cities";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -135,6 +136,13 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Earthquakes", path: "/earthquakes" },
+          { name: `M${eq.magnitude.toFixed(1)} — ${eq.place}` },
+        ]}
+      />
       {/* Hero */}
       <section className="relative text-white overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}, #111827)` }}>
         {/* Dark overlay so white text stays readable over light magnitude colors */}

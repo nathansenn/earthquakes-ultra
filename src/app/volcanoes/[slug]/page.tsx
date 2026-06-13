@@ -15,6 +15,7 @@ import { getEruptionRecord, type NotableEruption, type UnrestSignal, type Scienc
 import { philippineBaseAnnualRate, reposeAnalysis, assessGlobalVolcano, type RiskLevel } from "@/lib/eruption-forecast";
 import { assessVolcanoRisk, type Earthquake } from "@/lib/volcanic-prediction-v2";
 import { RiskCard, type RiskCardData } from "@/components/volcano/RiskCard";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 import { toRiskCardData } from "@/components/volcano/risk-card-data";
 
 const RISK_TEXT: Record<RiskLevel, string> = {
@@ -273,6 +274,16 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Global Volcanoes", path: "/volcanoes/global" },
+          {
+            name: volcano.country,
+            path: volcano.isPhilippine ? "/volcanoes" : `/volcanoes/country/${countryToSlug(volcano.country)}`,
+          },
+          { name: volcano.name },
+        ]}
+      />
       {/* Header */}
       <section className="bg-gradient-to-br from-orange-600 via-red-600 to-red-700 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

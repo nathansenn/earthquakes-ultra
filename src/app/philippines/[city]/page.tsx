@@ -9,6 +9,7 @@ import {
   getCitiesByRegion,
   philippineRegions,
 } from "@/data/philippine-cities";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 import {
   ProcessedEarthquake,
   calculateStats,
@@ -179,6 +180,16 @@ export default async function CityPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Philippines", path: "/philippines" },
+          {
+            name: city.region,
+            path: `/region/${philippineRegions.find((r) => r.code === city.regionCode)?.slug ?? "ncr"}`,
+          },
+          { name: city.name },
+        ]}
+      />
       {/* Header */}
       <section className="bg-gradient-to-br from-purple-600 to-purple-700 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

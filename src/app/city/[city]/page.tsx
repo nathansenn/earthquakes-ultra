@@ -7,6 +7,7 @@ import { fetchEarthquakesNearCity, processEarthquake, ProcessedEarthquake, getTi
 import { getPhilippinesEarthquakes } from "@/lib/db-queries";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { getDistanceFromLatLonInKm } from "@/data/philippine-cities";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 interface Props {
   params: Promise<{ city: string }>;
@@ -106,6 +107,13 @@ export default async function CityPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Cities", path: "/cities" },
+          ...(country ? [{ name: country.name, path: `/country/${country.slug}` }] : []),
+          { name: city.name },
+        ]}
+      />
       {/* Header */}
       <section className="bg-gradient-to-r from-orange-600 to-red-700 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

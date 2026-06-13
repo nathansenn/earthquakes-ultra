@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCountryBySlug } from '@/data/countries';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { 
   fetchUSGSHistorical, 
   getHistoricalEarthquakesForCountry, 
@@ -82,6 +83,13 @@ export default async function HistoryPage({ params, searchParams }: Props) {
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: countryData.name, path: `/country/${country}` },
+          { name: "Historical Data" },
+        ]}
+      />
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-600 to-orange-700 text-white">
         <div className="max-w-7xl mx-auto px-4 py-12">
