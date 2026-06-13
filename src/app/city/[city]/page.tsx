@@ -193,7 +193,7 @@ export default async function CityPage({ params }: Props) {
                 </span>
               </div>
               {earthquakes.length > 0 ? (
-                <EarthquakeList earthquakes={earthquakes} />
+                <EarthquakeList earthquakes={earthquakes} initialCount={40} />
               ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">

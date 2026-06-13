@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ProcessedEarthquake } from "@/lib/usgs-api";
 import { EarthquakeCard, EarthquakeCardCompact } from "./EarthquakeCard";
 
@@ -9,6 +10,8 @@ interface EarthquakeListProps {
   showDistance?: boolean;
   userLocation?: { latitude: number; longitude: number };
   emptyMessage?: string;
+  /** When set, render only this many rows initially behind a "Show all" toggle. */
+  initialCount?: number;
 }
 
 // Calculate distance between two points
@@ -38,7 +41,10 @@ export function EarthquakeList({
   showDistance = false,
   userLocation,
   emptyMessage = "No earthquakes found.",
+  initialCount,
 }: EarthquakeListProps) {
+  const [expanded, setExpanded] = useState(false);
+
   // De-duplicate by id — multi-source feeds (USGS/EMSC/JMA) can surface the same
   // event twice, which renders a duplicate row and a React "same key" warning.
   const seen = new Set<string>();
@@ -47,6 +53,11 @@ export function EarthquakeList({
     seen.add(eq.id);
     return true;
   });
+
+  // Cap the initial render so high-volume pages (e.g. a country with thousands
+  // of events) don't produce an absurdly tall page.
+  const isCapped = initialCount != null && !expanded && items.length > initialCount;
+  const visible = isCapped ? items.slice(0, initialCount) : items;
 
   if (items.length === 0) {
     return (
@@ -69,19 +80,31 @@ export function EarthquakeList({
     );
   }
 
+  const showAllButton = isCapped ? (
+    <button
+      onClick={() => setExpanded(true)}
+      className="mt-4 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+    >
+      Show all {items.length.toLocaleString()} earthquakes
+    </button>
+  ) : null;
+
   if (compact) {
     return (
-      <div className="divide-y divide-gray-100 dark:divide-gray-800">
-        {items.map((eq) => (
-          <EarthquakeCardCompact key={eq.id} earthquake={eq} />
-        ))}
-      </div>
+      <>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {visible.map((eq) => (
+            <EarthquakeCardCompact key={eq.id} earthquake={eq} />
+          ))}
+        </div>
+        {showAllButton}
+      </>
     );
   }
 
   return (
     <div className="space-y-4">
-      {items.map((eq) => {
+      {visible.map((eq) => {
         const distanceKm =
           showDistance && userLocation
             ? getDistanceFromLatLonInKm(
@@ -101,6 +124,7 @@ export function EarthquakeList({
           />
         );
       })}
+      {showAllButton}
     </div>
   );
 }
