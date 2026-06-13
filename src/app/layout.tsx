@@ -80,12 +80,6 @@ export const metadata: Metadata = {
       "Track earthquakes worldwide in real-time. M1+ global coverage and regional monitoring.",
     images: ["/og-image.png"],
   },
-  alternates: {
-    canonical: "https://quakeglobe.com",
-  },
-  verification: {
-    google: "your-google-verification-code",
-  },
 };
 
 export const viewport: Viewport = {
