@@ -80,12 +80,6 @@ export const metadata: Metadata = {
       "Track earthquakes worldwide in real-time. M1+ global coverage and regional monitoring.",
     images: ["/og-image.png"],
   },
-  alternates: {
-    canonical: "https://quakeglobe.com",
-  },
-  verification: {
-    google: "your-google-verification-code",
-  },
 };
 
 export const viewport: Viewport = {
@@ -118,10 +112,17 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body
-        className={`${inter.variable} ${robotoMono.variable} antialiased min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100`}
+        className={`${inter.variable} ${robotoMono.variable} antialiased min-h-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100`}
       >
+        {/* Keyboard/screen-reader users can jump straight to the content. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-3 focus:left-3 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-blue-600 focus:text-white focus:shadow-lg"
+        >
+          Skip to content
+        </a>
         <Header />
-        <main className="flex-1">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 outline-none">{children}</main>
         <DynamicFooter pageType="home" />
         <KeyboardShortcuts />
       </body>
