@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ProcessedEarthquake } from "@/lib/usgs-api";
 
 interface EarthquakeCardProps {
@@ -43,7 +44,9 @@ export function EarthquakeCard({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                {earthquake.place}
+                <Link href={`/earthquakes/${encodeURIComponent(earthquake.id)}`} className="hover:underline">
+                  {earthquake.place}
+                </Link>
               </h3>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
                 <time dateTime={earthquake.time.toISOString()} className="flex items-center gap-1">
@@ -142,13 +145,22 @@ export function EarthquakeCard({
 
           {/* Action row */}
           <div className="flex items-center gap-4 mt-3">
+            <Link
+              href={`/earthquakes/${encodeURIComponent(earthquake.id)}`}
+              className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1"
+            >
+              Details
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
             <a
               href={earthquake.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
             >
-              USGS Details
+              USGS
               <svg
                 className="w-3 h-3"
                 fill="none"
@@ -225,12 +237,10 @@ export function EarthquakeCardCompact({
           {earthquake.timeAgo} • {earthquake.depth.toFixed(0)} km deep
         </p>
       </div>
-      <a
-        href={earthquake.url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href={`/earthquakes/${encodeURIComponent(earthquake.id)}`}
         className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-        title="View details"
+        aria-label={`Details for M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place}`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -240,7 +250,7 @@ export function EarthquakeCardCompact({
             d="M9 5l7 7-7 7"
           />
         </svg>
-      </a>
+      </Link>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 
 import Database from 'better-sqlite3';
 import path from 'path';
+import { haversineKm } from './geo';
 
 const DB_PATH = path.join(process.cwd(), 'data/earthquakes.db');
 
@@ -163,6 +164,97 @@ export function getPhilippinesEarthquakes(
     }));
   } catch (error) {
     console.error('Database query error:', error);
+    return [];
+  }
+}
+
+function mapRow(eq: DBEarthquake): ProcessedEarthquake {
+  return {
+    id: eq.id,
+    source: eq.source,
+    magnitude: eq.magnitude,
+    magnitudeType: eq.magnitude_type,
+    place: eq.location,
+    time: new Date(eq.date_time),
+    timestamp: eq.timestamp,
+    latitude: eq.latitude,
+    longitude: eq.longitude,
+    depth: eq.depth,
+    region: eq.region,
+    url: eq.url,
+    felt: eq.felt,
+    tsunami: eq.tsunami === 1,
+  };
+}
+
+/**
+ * Look up a single earthquake by its database id (e.g. "usgs_us6000s5d3").
+ * Returns null when the id is not in the local snapshot — callers can then fall
+ * back to a live source (see fetchUSGSEventById in usgs-api).
+ */
+export function getEarthquakeById(id: string): ProcessedEarthquake | null {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const row = db.prepare('SELECT * FROM earthquakes WHERE id = ?').get(id) as DBEarthquake | undefined;
+    db.close();
+    return row ? mapRow(row) : null;
+  } catch (error) {
+    console.error('getEarthquakeById error:', error);
+    return null;
+  }
+}
+
+/**
+ * Earthquakes near a point (great-circle), excluding one id, within a time
+ * window measured back from the data reference time. Used for an event's
+ * "related earthquakes" / local sequence.
+ */
+export function getNearbyEarthquakes(
+  latitude: number,
+  longitude: number,
+  opts: { excludeId?: string; radiusKm?: number; days?: number; minMag?: number; limit?: number } = {}
+): (ProcessedEarthquake & { distanceKm: number })[] {
+  const { excludeId, radiusKm = 250, days = 365, minMag = 1.0, limit = 12 } = opts;
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const cutoff = getReferenceTimestamp(db) - days * 24 * 60 * 60 * 1000;
+    // Coarse bounding box first (1° lat ≈ 111 km), then exact haversine filter.
+    const dLat = radiusKm / 111;
+    const dLon = radiusKm / (111 * Math.max(0.2, Math.cos((latitude * Math.PI) / 180)));
+    const rows = db.prepare(`
+      SELECT * FROM earthquakes
+      WHERE timestamp >= ? AND magnitude >= ?
+        AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?
+      ORDER BY timestamp DESC
+      LIMIT 500
+    `).all(cutoff, minMag, latitude - dLat, latitude + dLat, longitude - dLon, longitude + dLon) as DBEarthquake[];
+    db.close();
+
+    return rows
+      .filter((r) => r.id !== excludeId)
+      .map((r) => ({ ...mapRow(r), distanceKm: haversineKm(latitude, longitude, r.latitude, r.longitude) }))
+      .filter((r) => r.distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, limit);
+  } catch (error) {
+    console.error('getNearbyEarthquakes error:', error);
+    return [];
+  }
+}
+
+/** Most significant recent earthquakes — used to pre-render their detail pages. */
+export function getSignificantEarthquakeIds(minMag = 4.0, days = 120, limit = 250): string[] {
+  try {
+    const db = new Database(DB_PATH, { readonly: true });
+    const cutoff = getReferenceTimestamp(db) - days * 24 * 60 * 60 * 1000;
+    const rows = db.prepare(`
+      SELECT id FROM earthquakes WHERE magnitude >= ? AND timestamp >= ?
+      ORDER BY magnitude DESC, timestamp DESC LIMIT ?
+    `).all(minMag, cutoff, limit) as { id: string }[];
+    db.close();
+    return rows.map((r) => r.id);
+  } catch (error) {
+    console.error('getSignificantEarthquakeIds error:', error);
     return [];
   }
 }
