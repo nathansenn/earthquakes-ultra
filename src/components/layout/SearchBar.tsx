@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { philippineCities } from "@/data/philippine-cities";
 import { seismicCountries } from "@/data/countries";
 import { PHILIPPINE_VOLCANOES } from "@/data/philippine-volcanoes";
@@ -17,8 +18,39 @@ export function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const close = () => {
+    setIsOpen(false);
+    setQuery("");
+  };
+
+  // Reset the highlighted row whenever the result set changes.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [results]);
+
+  // Arrow-key navigation + Enter to open the highlighted result.
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (results.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % results.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i - 1 + results.length) % results.length);
+    } else if (e.key === "Enter") {
+      const target = results[activeIndex];
+      if (target) {
+        e.preventDefault();
+        close();
+        router.push(target.slug);
+      }
+    }
+  };
 
   // Keyboard shortcut to open search (Cmd/Ctrl + K)
   useEffect(() => {
@@ -144,25 +176,32 @@ export function SearchBar() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onInputKeyDown}
                 placeholder="Search cities, countries, volcanoes..."
                 className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400"
                 autoComplete="off"
+                role="combobox"
+                aria-expanded={results.length > 0}
+                aria-controls="search-results"
+                aria-autocomplete="list"
               />
               <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-500">ESC</kbd>
             </div>
 
             {/* Results */}
             {results.length > 0 && (
-              <div className="max-h-80 overflow-y-auto p-2">
+              <div id="search-results" role="listbox" className="max-h-80 overflow-y-auto p-2">
                 {results.map((result, index) => (
                   <Link
                     key={`${result.type}-${result.slug}-${index}`}
                     href={result.slug}
-                    onClick={() => {
-                      setIsOpen(false);
-                      setQuery("");
-                    }}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={close}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                      index === activeIndex ? "bg-gray-100 dark:bg-gray-800" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
                   >
                     <span className="text-xl">{getIcon(result.type)}</span>
                     <div className="flex-1">
@@ -180,9 +219,15 @@ export function SearchBar() {
             {/* No Results */}
             {query && results.length === 0 && (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                <p>No results found for "{query}"</p>
+                <p>No results found for &ldquo;{query}&rdquo;</p>
               </div>
             )}
+
+            {/* Scope disclosure */}
+            <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 dark:text-gray-500 flex items-center justify-between gap-2">
+              <span>Searches Philippine cities &amp; volcanoes and major seismic countries.</span>
+              {results.length > 0 && <span className="hidden sm:inline">↑↓ to navigate · ↵ to open</span>}
+            </div>
 
             {/* Empty State */}
             {!query && (

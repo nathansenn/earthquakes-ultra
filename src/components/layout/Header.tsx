@@ -1,13 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { SearchBar } from "./SearchBar";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [regionsOpen, setRegionsOpen] = useState(false);
   const [latestAlert, setLatestAlert] = useState<{ mag: number; place: string; time: Date } | null>(null);
+  const regionsRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // Active-section helper for nav highlighting.
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  const regionsActive =
+    isActive("/philippines") || isActive("/country") || isActive("/countries") || isActive("/region");
+  const navLink = (href: string) =>
+    `transition-colors font-medium flex items-center gap-1 ${
+      isActive(href)
+        ? "text-blue-600 dark:text-blue-400"
+        : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+    }`;
 
   // Fetch latest significant earthquake for alert badge
   useEffect(() => {
@@ -35,16 +51,36 @@ export function Header() {
     fetchLatest();
   }, []);
 
+  // Close the regions dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!regionsOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (regionsRef.current && !regionsRef.current.contains(e.target as Node)) setRegionsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setRegionsOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [regionsOpen]);
+
   // Check if latest alert is within last 24 hours
   const isRecentAlert = latestAlert && (Date.now() - latestAlert.time.getTime()) < 24 * 60 * 60 * 1000;
+  // A single alert indicator: the prominent banner for M6+, otherwise the compact pill.
+  const showBanner = !!isRecentAlert && latestAlert!.mag >= 6;
+  const showPill = !!isRecentAlert && !showBanner;
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-      {/* Alert Banner for significant recent earthquakes */}
-      {isRecentAlert && latestAlert.mag >= 6 && (
+      {/* Alert Banner for significant recent earthquakes (M6+) */}
+      {showBanner && (
         <div className="bg-red-600 text-white py-1.5 px-4 text-center text-sm">
           <Link href="/earthquakes" className="hover:underline">
-            ⚠️ <strong>M{latestAlert.mag.toFixed(1)}</strong> earthquake detected: {latestAlert.place} • Click for details
+            ⚠️ <strong>M{latestAlert!.mag.toFixed(1)}</strong> earthquake detected: {latestAlert!.place} • Click for details
           </Link>
         </div>
       )}
@@ -73,57 +109,61 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-4">
             <SearchBar />
             
-            <Link
-              href="/earthquakes"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1"
-            >
+            <Link href="/earthquakes" className={navLink("/earthquakes")}>
               <span>📊</span>
               <span>All Earthquakes</span>
             </Link>
-            <div className="relative group">
-              <button className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1">
+            <div className="relative" ref={regionsRef}>
+              <button
+                onClick={() => setRegionsOpen((o) => !o)}
+                aria-expanded={regionsOpen}
+                aria-haspopup="menu"
+                className={`transition-colors font-medium flex items-center gap-1 ${
+                  regionsActive || regionsOpen
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                }`}
+              >
                 🌍 Regions
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className={`w-4 h-4 transition-transform ${regionsOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div
+                role="menu"
+                className={`absolute left-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 z-50 ${
+                  regionsOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-1 pointer-events-none"
+                }`}
+              >
                 <div className="py-2">
-                  <Link href="/philippines" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇵🇭 Philippines</Link>
-                  <Link href="/country/japan" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇯🇵 Japan</Link>
-                  <Link href="/country/indonesia" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇮🇩 Indonesia</Link>
-                  <Link href="/country/united-states" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇺🇸 United States</Link>
-                  <Link href="/country/chile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇨🇱 Chile</Link>
+                  <Link href="/philippines" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇵🇭 Philippines</Link>
+                  <Link href="/country/japan" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇯🇵 Japan</Link>
+                  <Link href="/country/indonesia" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇮🇩 Indonesia</Link>
+                  <Link href="/country/united-states" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇺🇸 United States</Link>
+                  <Link href="/country/chile" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">🇨🇱 Chile</Link>
                   <div className="border-t border-gray-100 dark:border-gray-800 mt-2 pt-2">
-                    <Link href="/countries" className="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800">All Countries →</Link>
+                    <Link href="/countries" role="menuitem" onClick={() => setRegionsOpen(false)} className="block px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800">All Countries →</Link>
                   </div>
                 </div>
               </div>
             </div>
-            <Link
-              href="/map"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
-            >
+            <Link href="/map" className={navLink("/map")}>
               Live Map
             </Link>
-            <Link
-              href="/globe"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1"
-            >
+            <Link href="/globe" className={navLink("/globe")}>
               <span>🌐</span>
               <span>3D Globe</span>
             </Link>
-            <Link
-              href="/volcanoes"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium flex items-center gap-1"
-            >
+            <Link href="/volcanoes" className={navLink("/volcanoes")}>
               <span>🌋</span>
               <span>Volcanoes</span>
             </Link>
-            <Link
-              href="/preparedness"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
-            >
+            <Link href="/preparedness" className={navLink("/preparedness")}>
               Safety
             </Link>
           </div>
@@ -132,21 +172,22 @@ export function Header() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             
-            {/* Alert badge */}
-            {isRecentAlert && (
+            {/* Alert badge (shown only when the M6+ banner isn't) */}
+            {showPill && (
               <Link
                 href="/earthquakes"
-                className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium animate-pulse"
+                title={`Recent M${latestAlert!.mag.toFixed(1)} — ${latestAlert!.place}`}
+                className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium"
               >
-                <span className="w-2 h-2 bg-red-500 rounded-full" />
-                M{latestAlert.mag.toFixed(1)}
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                M{latestAlert!.mag.toFixed(1)}
               </Link>
             )}
-            
+
             {/* Near Me CTA */}
             <Link
               href="/near-me"
-              className="hidden md:flex px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg items-center gap-2"
+              className="hidden md:flex px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-md hover:shadow-lg items-center gap-2"
             >
               <svg
                 className="w-4 h-4"
@@ -203,8 +244,13 @@ export function Header() {
         </div>
 
         {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-800">
+        <div
+          aria-hidden={!isMenuOpen}
+          className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+            isMenuOpen ? "max-h-[85vh] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+          }`}
+        >
+          <div className="py-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex flex-col gap-3">
               {/* Mobile Search */}
               <div className="mb-2">
@@ -264,7 +310,7 @@ export function Header() {
 
               <Link
                 href="/near-me"
-                className="mt-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg font-medium transition-all text-center flex items-center justify-center gap-2"
+                className="mt-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-center flex items-center justify-center gap-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <svg
@@ -290,7 +336,7 @@ export function Header() {
               </Link>
             </div>
           </div>
-        )}
+        </div>
       </nav>
     </header>
   );
