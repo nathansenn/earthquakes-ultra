@@ -505,6 +505,16 @@ export interface ProcessedEarthquake {
   alert: string | null;
   intensity: string;
   significanceScore: number;
+  // Origin feed when known (usgs | emsc | jma | geonet | phivolcs). Used to
+  // decide whether our own detail page can resolve the event.
+  source?: string;
+}
+
+// Whether our own /earthquakes/[id] page can resolve this event. USGS events
+// resolve via the live USGS-id fallback; PHIVOLCS events live in the local DB.
+// EMSC/JMA/GeoNet ids aren't resolvable, so those should link to their source.
+export function canResolveInternally(source?: string): boolean {
+  return !source || source === "usgs" || source === "phivolcs";
 }
 
 export function processEarthquake(eq: USGSEarthquake): ProcessedEarthquake {

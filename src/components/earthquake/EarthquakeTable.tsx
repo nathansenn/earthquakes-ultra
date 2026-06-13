@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
-import { ProcessedEarthquake } from "@/lib/usgs-api";
+import { ProcessedEarthquake, canResolveInternally } from "@/lib/usgs-api";
 import { MagnitudeBadge } from "@/components/ui/kit";
 
 type SortField = "magnitude" | "time" | "depth" | "place";
@@ -207,7 +207,12 @@ export function EarthquakeTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {paginatedEarthquakes.map((eq) => (
+              {paginatedEarthquakes.map((eq) => {
+                const resolvable = canResolveInternally(eq.source);
+                const detailHref = `/earthquakes/${encodeURIComponent(eq.id)}`;
+                const placeText = eq.place || "Unknown location";
+                const placeClass = "text-sm font-medium text-gray-900 dark:text-white truncate block hover:text-red-600 dark:hover:text-red-400 hover:underline";
+                return (
                 <tr
                   key={eq.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -217,13 +222,12 @@ export function EarthquakeTable({
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-xs">
-                      <Link
-                        href={`/earthquakes/${encodeURIComponent(eq.id)}`}
-                        className="text-sm font-medium text-gray-900 dark:text-white truncate block hover:text-red-600 dark:hover:text-red-400 hover:underline"
-                      >
-                        {eq.place || "Unknown location"}
-                      </Link>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {resolvable ? (
+                        <Link href={detailHref} className={placeClass}>{placeText}</Link>
+                      ) : (
+                        <a href={eq.url} target="_blank" rel="noopener noreferrer" className={placeClass}>{placeText}</a>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
                         {eq.latitude.toFixed(3)}°, {eq.longitude.toFixed(3)}°
                       </p>
                     </div>
@@ -251,18 +255,33 @@ export function EarthquakeTable({
                     </td>
                   )}
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/earthquakes/${encodeURIComponent(eq.id)}`}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                    >
-                      Details
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
+                    {resolvable ? (
+                      <Link
+                        href={detailHref}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        Details
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <a
+                        href={eq.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        {(eq.source ?? "source").toUpperCase()}
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

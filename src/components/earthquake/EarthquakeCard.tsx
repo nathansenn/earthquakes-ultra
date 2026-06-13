@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ProcessedEarthquake } from "@/lib/usgs-api";
+import { ProcessedEarthquake, canResolveInternally } from "@/lib/usgs-api";
 import { magnitudeTier } from "@/components/ui/kit";
 
 interface EarthquakeCardProps {
@@ -18,7 +18,9 @@ export function EarthquakeCard({
 }: EarthquakeCardProps) {
   const tier = magnitudeTier(earthquake.magnitude);
   const [copied, setCopied] = useState(false);
+  const resolvable = canResolveInternally(earthquake.source);
   const detailHref = `/earthquakes/${encodeURIComponent(earthquake.id)}`;
+  const sourceLabel = (earthquake.source ?? "usgs").toUpperCase();
   // Absolute time with timezone label, for the relative-time tooltip.
   // (dateStyle/timeStyle can't be combined with timeZoneName, so use components.)
   const absoluteTime = earthquake.time.toLocaleString(undefined, {
@@ -32,13 +34,24 @@ export function EarthquakeCard({
 
   return (
     <article className="relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all hover:border-red-300 dark:hover:border-red-700 group">
-      {/* Stretched link: clicking anywhere on the card opens the detail page.
+      {/* Stretched link: clicking anywhere on the card opens the detail page
+          (or the source's page for events we can't resolve ourselves).
           Interactive controls below are raised above it with relative z-10. */}
-      <Link
-        href={detailHref}
-        className="absolute inset-0 z-0"
-        aria-label={`Details for M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place}`}
-      />
+      {resolvable ? (
+        <Link
+          href={detailHref}
+          className="absolute inset-0 z-0"
+          aria-label={`Details for M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place}`}
+        />
+      ) : (
+        <a
+          href={earthquake.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 z-0"
+          aria-label={`View M${earthquake.magnitude.toFixed(1)} earthquake near ${earthquake.place} on ${sourceLabel}`}
+        />
+      )}
       <div className="flex items-stretch">
         {/* Magnitude Badge */}
         <div
@@ -154,22 +167,24 @@ export function EarthquakeCard({
 
           {/* Action row — raised above the stretched card link */}
           <div className="relative z-10 flex items-center gap-4 mt-3 w-fit">
-            <Link
-              href={detailHref}
-              className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1"
-            >
-              Details
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+            {resolvable && (
+              <Link
+                href={detailHref}
+                className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1"
+              >
+                Details
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            )}
             <a
               href={earthquake.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1"
             >
-              USGS
+              {sourceLabel}
               <svg
                 className="w-3 h-3"
                 fill="none"
