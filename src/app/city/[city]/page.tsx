@@ -188,16 +188,16 @@ export default async function CityPage({ params }: Props) {
                 <EarthquakeList earthquakes={earthquakes} />
               ) : (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400">
-                    No earthquakes M2.0+ recorded within {city.searchRadiusKm}km in the last 30 days.
+                    No earthquakes M2.0+ recorded within {city.searchRadiusKm} km in the last 30 days.
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                    This is a good sign for seismic safety!
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 max-w-md mx-auto">
+                    This reflects recorded events only — a quiet stretch doesn&apos;t lower long-term risk in an active region. Keep an emergency plan ready.
                   </p>
                 </div>
               )}

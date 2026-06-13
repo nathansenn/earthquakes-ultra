@@ -414,17 +414,18 @@ export default async function CityPage({ params }: Props) {
                 {earthquakes.length > 0 ? (
                   <EarthquakeList earthquakes={earthquakes.slice(0, 20)} />
                 ) : (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
-                      No Recent Earthquakes
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      No Recent Earthquakes Recorded
                     </h3>
-                    <p className="text-green-700 dark:text-green-300">
-                      Good news! No significant earthquakes detected near {city.name} in the past 90 days.
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                      No significant earthquakes were recorded near {city.name} in the past 90 days. This shows
+                      recorded events only — the Philippines is seismically active, so keep an emergency plan ready.
                     </p>
                   </div>
                 )}
