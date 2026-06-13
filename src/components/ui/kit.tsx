@@ -135,6 +135,51 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   ghost: "text-blue-600 dark:text-blue-400 hover:underline",
 };
 
+/** Pulsing skeleton block for loading placeholders. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-gray-200 dark:bg-gray-700 ${className}`} />;
+}
+
+/**
+ * Shared empty state — neutral icon + message + optional action. Used wherever
+ * a list/section has no data, so the look (and tone) is consistent.
+ */
+export function EmptyState({
+  title,
+  message,
+  icon = "🔍",
+  action,
+  className = "",
+}: {
+  title: string;
+  message?: ReactNode;
+  icon?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`text-center py-12 ${className}`}>
+      <div className="text-4xl mb-3" aria-hidden>{icon}</div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+      {message && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">{message}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+/** Shared spinner + message loading state. */
+export function LoadingState({ message = "Loading…" }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+      <svg className="w-10 h-10 animate-spin mb-3" fill="none" viewBox="0 0 24 24" aria-hidden>
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
 /** Link styled as a button. Keeps CTA styling consistent across pages. */
 export function ButtonLink({
   href,
