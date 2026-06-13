@@ -12,10 +12,20 @@ import { getPhilippinesEarthquakes, getDataFreshness, getDataReferenceTime } fro
 import { getDistanceFromLatLonInKm, philippineCities } from "@/data/philippine-cities";
 import { DataFreshness } from "@/components/ui/DataFreshness";
 import { getEruptionRecord, type NotableEruption, type UnrestSignal, type ScienceRef } from "@/data/eruption-history";
-import { philippineBaseAnnualRate, reposeAnalysis, assessGlobalVolcano } from "@/lib/eruption-forecast";
+import { philippineBaseAnnualRate, reposeAnalysis, assessGlobalVolcano, type RiskLevel } from "@/lib/eruption-forecast";
 import { assessVolcanoRisk, type Earthquake } from "@/lib/volcanic-prediction-v2";
 import { RiskCard, type RiskCardData } from "@/components/volcano/RiskCard";
 import { toRiskCardData } from "@/components/volcano/risk-card-data";
+
+const RISK_TEXT: Record<RiskLevel, string> = {
+  CRITICAL: 'text-red-700 dark:text-red-300',
+  VERY_HIGH: 'text-red-600 dark:text-red-400',
+  HIGH: 'text-orange-600 dark:text-orange-400',
+  ELEVATED: 'text-yellow-600 dark:text-yellow-400',
+  MODERATE: 'text-lime-600 dark:text-lime-400',
+  LOW: 'text-green-600 dark:text-green-400',
+  BACKGROUND: 'text-gray-500 dark:text-gray-400',
+};
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -341,7 +351,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{globalAssessment.probability1Year}%</p>
+                      <p className={`text-2xl font-bold ${RISK_TEXT[globalAssessment.riskLevel]}`}>{globalAssessment.probability1Year}%</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">1-year probability</p>
                     </div>
                     <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -353,7 +363,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                       <p className="text-xs text-gray-500 dark:text-gray-400">Avg. recurrence</p>
                     </div>
                     <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                      <p className="text-base font-bold text-gray-900 dark:text-white">{globalAssessment.riskLevel.replace('_', ' ')}</p>
+                      <p className={`text-base font-bold capitalize ${RISK_TEXT[globalAssessment.riskLevel]}`}>{globalAssessment.riskLevel.replace('_', ' ').toLowerCase()}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Risk level</p>
                     </div>
                   </div>
@@ -728,9 +738,10 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
             <div className="space-y-6">
               {/* Population Exposure */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
                   ⚠️ Population Exposure
                 </h2>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Bars are relative to the 100 km total.</p>
                 <div className="space-y-4">
                   {volcano.population10km !== undefined && (
                     <div>
@@ -743,7 +754,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-red-500"
-                          style={{ width: `${Math.min(100, ((volcano.population10km || 0) / 100000) * 100)}%` }}
+                          style={{ width: `${Math.min(100, ((volcano.population10km || 0) / (volcano.population100km || volcano.population30km || volcano.population10km || 1)) * 100)}%` }}
                         />
                       </div>
                     </div>
@@ -758,7 +769,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                     <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-orange-500"
-                        style={{ width: `${Math.min(100, ((volcano.population30km || 0) / 1000000) * 100)}%` }}
+                        style={{ width: `${Math.min(100, ((volcano.population30km || 0) / (volcano.population100km || volcano.population30km || 1)) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -773,7 +784,7 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
                       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-yellow-500"
-                          style={{ width: `${Math.min(100, ((volcano.population100km || 0) / 10000000) * 100)}%` }}
+                          style={{ width: `${Math.min(100, ((volcano.population100km || 0) / (volcano.population100km || 1)) * 100)}%` }}
                         />
                       </div>
                     </div>

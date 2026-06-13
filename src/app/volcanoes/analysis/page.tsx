@@ -201,7 +201,7 @@ export default async function VolcanoAnalysisPage() {
             to see how its baseline is derived.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {normalRisk.map((assessment, i) => (
               <MiniRiskChip
                 key={assessment.volcano.id}

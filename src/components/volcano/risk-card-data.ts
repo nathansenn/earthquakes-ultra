@@ -126,6 +126,8 @@ export function toRiskCardData(a: RiskAssessment, slug: string, refTime: number)
     },
     scientificNotes: a.scientificNotes,
     guidanceAction: a.strategicGuidance.action,
+    guidanceContext: a.strategicGuidance.context,
+    preparednessSteps: a.strategicGuidance.preparednessSteps ?? [],
     // Reasoning, evidence & historical/scientific context
     riskDirection: a.riskDirection,
     evidence: a.evidence,
