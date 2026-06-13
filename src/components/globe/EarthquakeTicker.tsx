@@ -1,6 +1,7 @@
 'use client';
 
 import { ProcessedEarthquake } from '@/lib/usgs-api';
+import { getMagnitudeColor } from './magnitudeColor';
 
 interface EarthquakeTickerProps {
   earthquakes: ProcessedEarthquake[];
@@ -48,12 +49,4 @@ export default function EarthquakeTicker({ earthquakes }: EarthquakeTickerProps)
       </div>
     </div>
   );
-}
-
-function getMagnitudeColor(magnitude: number): string {
-  if (magnitude >= 7) return '#b91c1c';
-  if (magnitude >= 6) return '#ef4444';
-  if (magnitude >= 5) return '#f97316';
-  if (magnitude >= 4) return '#facc15';
-  return '#4ade80';
 }

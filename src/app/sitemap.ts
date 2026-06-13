@@ -26,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/countries", priority: 0.6, changeFrequency: "weekly" as const },
     { path: "/philippines", priority: 0.7, changeFrequency: "daily" as const },
     { path: "/preparedness", priority: 0.6, changeFrequency: "monthly" as const },
+    { path: "/glossary", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/alerts", priority: 0.4, changeFrequency: "monthly" as const },
     { path: "/about", priority: 0.3, changeFrequency: "monthly" as const },
     { path: "/privacy", priority: 0.2, changeFrequency: "yearly" as const },
