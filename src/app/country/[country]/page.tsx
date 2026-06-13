@@ -210,7 +210,7 @@ export default async function CountryPage({ params }: Props) {
                 Recent Earthquakes ({earthquakes.length})
               </h2>
               {earthquakes.length > 0 ? (
-                <EarthquakeList earthquakes={earthquakes} />
+                <EarthquakeList earthquakes={earthquakes} initialCount={40} />
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                   No earthquakes M2.5+ recorded in the last 30 days.

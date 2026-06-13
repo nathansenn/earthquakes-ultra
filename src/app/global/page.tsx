@@ -115,7 +115,7 @@ export default async function GlobalPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
               All Earthquakes ({earthquakes.length})
             </h2>
-            <EarthquakeList earthquakes={earthquakes} />
+            <EarthquakeList earthquakes={earthquakes} initialCount={40} />
           </div>
 
           {/* Info Box */}
