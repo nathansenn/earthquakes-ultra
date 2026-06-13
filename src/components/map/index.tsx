@@ -13,4 +13,6 @@ export const EarthquakeMap = dynamic(
 );
 
 export { default as MapSkeleton } from './MapSkeleton';
+export { default as LocationMap } from './LocationMap';
 export type { EarthquakeMapProps } from './EarthquakeMap';
+export type { LocationMapViewProps, MapQuake } from './LocationMapView';

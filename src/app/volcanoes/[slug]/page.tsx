@@ -16,6 +16,7 @@ import { philippineBaseAnnualRate, reposeAnalysis, assessGlobalVolcano, type Ris
 import { assessVolcanoRisk, type Earthquake } from "@/lib/volcanic-prediction-v2";
 import { RiskCard, type RiskCardData } from "@/components/volcano/RiskCard";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { LocationMap } from "@/components/map";
 import { toRiskCardData } from "@/components/volcano/risk-card-data";
 
 const RISK_TEXT: Record<RiskLevel, string> = {
@@ -340,6 +341,22 @@ export default async function VolcanoDetailPage({ params }: PageProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Location map */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">📍 Location</h2>
+                <LocationMap
+                  center={[volcano.latitude, volcano.longitude]}
+                  zoom={9}
+                  height="360px"
+                  focus={{ lat: volcano.latitude, lon: volcano.longitude, label: volcano.name, emoji: "🌋" }}
+                  earthquakes={nearbyEarthquakes}
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                  {volcano.latitude.toFixed(3)}°, {volcano.longitude.toFixed(3)}° · {volcano.country}
+                  {volcano.isPhilippine && nearbyEarthquakes.length > 0 ? ` · ${nearbyEarthquakes.length} nearby earthquakes` : ""}
+                </p>
+              </div>
+
               {/* Live risk assessment — every volcano is run through the model */}
               {phRiskCard && (
                 <div>
