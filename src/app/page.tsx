@@ -6,6 +6,7 @@ import { fetchGlobalEarthquakesMultiSource, calculateMultiSourceStats, UnifiedEa
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { philippineCities, philippineRegions } from "@/data/philippine-cities";
 import { PHILIPPINE_VOLCANOES, getVolcanoesByPriority } from "@/data/philippine-volcanoes";
+import { GLOBAL_VOLCANOES } from "@/data/global-volcanoes";
 import { philippineFaultLines } from "@/data/fault-lines";
 
 export const metadata: Metadata = {
@@ -165,8 +166,8 @@ export default async function HomePage() {
                 Everywhere.
               </h1>
               <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-lg">
-                Real-time earthquake monitoring for the entire planet. 
-                Track M1+ seismic activity from micro-tremors to major quakes, updated every minute.
+                Real-time earthquake monitoring for the entire planet.
+                Track M1+ seismic activity from micro-tremors to major quakes, refreshed every ~15 minutes.
               </p>
 
               {/* CTA Buttons */}
@@ -454,9 +455,9 @@ export default async function HomePage() {
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-6 border border-orange-200 dark:border-orange-800">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-orange-900 dark:text-orange-200 flex items-center gap-2">
-                  🌋 Global Volcano Watch
+                  🌋 Philippine Volcano Watch
                 </h3>
-                <Link href="/volcanoes/global" className="text-xs text-orange-600 dark:text-orange-400 hover:underline">
+                <Link href="/volcanoes" className="text-xs text-orange-600 dark:text-orange-400 hover:underline">
                   Full Monitor →
                 </Link>
               </div>
@@ -609,8 +610,8 @@ export default async function HomePage() {
                 Magnitude Scale
               </h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                The Richter scale is logarithmic — each whole number increase represents 10x more shaking 
-                and ~31x more energy. An M7 releases 1,000x more energy than an M5.
+                The moment magnitude scale (the modern successor to Richter) is logarithmic — each whole
+                number is 10× more ground shaking and ~31× more energy. An M7 releases ~1,000× the energy of an M5.
               </p>
             </div>
           </div>
@@ -725,7 +726,7 @@ export default async function HomePage() {
                 Real-time Updates
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Data refreshed every minute from USGS. Get the latest seismic activity as it happens, not hours later.
+                Data refreshed every ~15 minutes from USGS, EMSC, JMA &amp; GeoNet. The latest seismic activity, not hours later.
               </p>
             </div>
 
@@ -749,7 +750,7 @@ export default async function HomePage() {
                 Volcano Monitoring
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Track 300+ active volcanoes worldwide. Scientific risk assessment based on seismic-volcanic correlation models.
+                Track {(GLOBAL_VOLCANOES.length + PHILIPPINE_VOLCANOES.length).toLocaleString()} volcanoes across the Pacific Ring of Fire and beyond, with statistical risk assessment based on seismic-volcanic correlation models.
               </p>
             </div>
 

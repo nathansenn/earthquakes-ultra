@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { ProcessedEarthquake, getMagnitudeColor } from "@/lib/usgs-api";
+import { ProcessedEarthquake } from "@/lib/usgs-api";
+import { MagnitudeBadge } from "@/components/ui/kit";
 
 type SortField = "magnitude" | "time" | "depth" | "place";
 type SortOrder = "asc" | "desc";
@@ -34,17 +35,7 @@ function deg2rad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
-function getMagnitudeClass(magnitude: number): string {
-  if (magnitude < 2.0) return "bg-gray-400 text-white";
-  if (magnitude < 3.0) return "bg-green-500 text-white";
-  if (magnitude < 4.0) return "bg-yellow-500 text-gray-900";
-  if (magnitude < 5.0) return "bg-orange-500 text-white";
-  if (magnitude < 6.0) return "bg-orange-600 text-white";
-  if (magnitude < 7.0) return "bg-red-600 text-white";
-  return "bg-red-800 text-white";
-}
-
-export function EarthquakeTable({ 
+export function EarthquakeTable({
   earthquakes, 
   userLocation,
   pageSize = 25 
@@ -198,11 +189,7 @@ export function EarthquakeTable({
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center justify-center w-12 h-8 rounded-lg font-bold text-sm ${getMagnitudeClass(eq.magnitude)}`}
-                    >
-                      {eq.magnitude.toFixed(1)}
-                    </span>
+                    <MagnitudeBadge magnitude={eq.magnitude} size="sm" />
                   </td>
                   <td className="px-4 py-3">
                     <div className="max-w-xs">
@@ -226,14 +213,14 @@ export function EarthquakeTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 dark:text-white">
-                      {eq.depth.toFixed(1)} km
+                    <span className="text-sm text-gray-900 dark:text-white tabular-nums">
+                      {eq.depth.toFixed(0)} km
                     </span>
                   </td>
                   {userLocation && (
                     <td className="px-4 py-3">
                       {eq.distance !== undefined && (
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400 tabular-nums">
                           {eq.distance.toFixed(0)} km
                         </span>
                       )}
