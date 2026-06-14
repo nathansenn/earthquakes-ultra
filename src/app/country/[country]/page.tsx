@@ -7,6 +7,7 @@ import { fetchEarthquakesByBounds, processEarthquake, ProcessedEarthquake, getTi
 import { fetchRegionEarthquakes, getRegionInfo } from "@/lib/regional-api";
 import { EarthquakeList } from "@/components/earthquake/EarthquakeList";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { LocationMap } from "@/components/map";
 
 interface Props {
   params: Promise<{ country: string }>;
@@ -204,7 +205,17 @@ export default async function CountryPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Seismic Map</h2>
+              <LocationMap
+                center={[country.capital.lat, country.capital.lon]}
+                zoom={5}
+                height="380px"
+                focus={{ lat: country.capital.lat, lon: country.capital.lon, label: country.capital.name, emoji: "📍" }}
+                earthquakes={earthquakes}
+              />
+            </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
                 Recent Earthquakes ({earthquakes.length})

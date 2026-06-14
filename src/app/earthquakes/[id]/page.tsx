@@ -12,6 +12,7 @@ import { calculateSeismicRisk } from "@/data/fault-lines";
 import { PHILIPPINE_VOLCANOES, volcanoNameToSlug } from "@/data/philippine-volcanoes";
 import { philippineCities } from "@/data/philippine-cities";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { LocationMap } from "@/components/map";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -122,16 +123,6 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
   const pht = eq.time.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "full", timeStyle: "short" });
   const utc = eq.time.toISOString().replace("T", " ").slice(0, 16) + " UTC";
 
-  // Epicenter mini-map bbox (OpenStreetMap embed — no API key, no extra deps).
-  const latDelta = 0.9;
-  const lonDelta = 1.4;
-  const bbox = [
-    eq.longitude - lonDelta,
-    eq.latitude - latDelta,
-    eq.longitude + lonDelta,
-    eq.latitude + latDelta,
-  ].map((n) => n.toFixed(4));
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox.join("%2C")}&layer=mapnik&marker=${eq.latitude.toFixed(4)}%2C${eq.longitude.toFixed(4)}`;
   const mapLink = `https://www.openstreetmap.org/?mlat=${eq.latitude.toFixed(4)}&mlon=${eq.longitude.toFixed(4)}#map=8/${eq.latitude.toFixed(3)}/${eq.longitude.toFixed(3)}`;
 
   return (
@@ -191,12 +182,15 @@ export default async function EarthquakeDetailPage({ params }: PageProps) {
               {eq.latitude.toFixed(3)}°, {eq.longitude.toFixed(3)}°
             </span>
           </div>
-          <iframe
-            title={`Map of the epicenter near ${eq.place}`}
-            src={mapSrc}
-            loading="lazy"
-            className="w-full h-64 border-0"
-          />
+          <div className="px-5 pb-3">
+            <LocationMap
+              center={[eq.latitude, eq.longitude]}
+              zoom={8}
+              height="340px"
+              focus={{ lat: eq.latitude, lon: eq.longitude, label: `M${eq.magnitude.toFixed(1)} epicenter`, emoji: '📍' }}
+              earthquakes={related}
+            />
+          </div>
           <div className="p-3 text-right">
             <a href={mapLink} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
               View larger map ↗

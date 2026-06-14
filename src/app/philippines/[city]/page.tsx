@@ -10,6 +10,7 @@ import {
   philippineRegions,
 } from "@/data/philippine-cities";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { LocationMap } from "@/components/map";
 import {
   ProcessedEarthquake,
   calculateStats,
@@ -342,6 +343,18 @@ export default async function CityPage({ params }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Location map */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Seismic Map</h2>
+                <LocationMap
+                  center={[city.latitude, city.longitude]}
+                  zoom={9}
+                  height="380px"
+                  focus={{ lat: city.latitude, lon: city.longitude, label: city.name, emoji: "📍" }}
+                  earthquakes={earthquakes}
+                />
+              </div>
+
               {/* Largest Earthquake Highlight */}
               {largestEq && largestEq.magnitude >= 3.5 && (
                 <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-6 text-white">
